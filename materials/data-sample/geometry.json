@@ -1,0 +1,32 @@
+{
+  "elements": [
+    {
+      "id": 1,
+      "type": "beam",
+      "length": 1.5,
+      "cross_section": {
+        "shape": "rectangle",
+        "width": 0.05,
+        "height": 0.1,
+        "area": 0.005
+      },
+      "material": {
+        "name": "Steel",
+        "E": 210000000000,
+        "rho": 7850
+      },
+      "boundary_conditions": {
+        "left": "fixed",
+        "right": "free"
+      },
+      "discretization": {
+        "num_elements": 10
+      }
+    }
+  ],
+  "metadata": {
+    "generated_from": "beam_model.step",
+    "date": "2025-08-26",
+    "units": "SI"
+  }
+}
