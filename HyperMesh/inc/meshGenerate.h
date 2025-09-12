@@ -7,8 +7,9 @@
 #define MESH_ORDER 1
 #endif
 
-#ifndef DIMENTION
-#define DIMENTION 2 // по умолчанию рассматривается 2D задача
+#ifndef DIMENSION
+#define DIMENSION 2 // по умолчанию рассматривается 2D задача
+#endif
 
 typedef enum bool_t bool_t;
 

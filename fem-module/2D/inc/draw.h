@@ -3,9 +3,9 @@
 
 #define GL_SILENCE_DEPRECATION
 
-#include "../../dependencies/glew/2.2.01/include/GL/glew.h"
-#include "../../dependencies/glfw/3.4/include/GLFW/glfw3.h"
-#include "../../dependencies/glut/include/glut.h"
+#include "GL/glew.h"
+#include "GLFW/glfw3.h"
+#include "glut.h"
 
 #define GLUT_WINDOW_POSITION_X 100  // Позиция окна (по оси x)
 #define GLUT_WINDOW_POSITION_Y 100  // Позиция окна (по оси y)

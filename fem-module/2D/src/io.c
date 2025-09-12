@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "io.h"
 #include "mtrx.h"
 
 bool_t readFromFile(char *filename, int *nys, double **dataCar, double ***car, int *nelem, int **data_jt03,

@@ -11,6 +11,11 @@
 #include "io.h"
 #include "mtrx.h"
 
+/*--------------------------------------------------------*/
+// Необходимо проработать получение закрепленных и нагруженных узлов
+// через сеты внутри файла с узлами.
+/*--------------------------------------------------------*/
+
 int nelem;
 int nys;
 double **car = NULL;
@@ -19,17 +24,19 @@ double *u = NULL;
 double **stress = NULL;
 
 // задаем материал
-const double h = 1.0;
+const double h = 1.;
 const double e = 2.1e5;
 const double puas = 0.3;
 
 int main(int argc, char **argv) {
-    int ndofysla = 2;  // кол-во степеней свободы одного узла
+    const int ndofysla = 2;  // кол-во степеней свободы одного узла
     double *dataCar;
     int *data_jt03;
 
-    char *filename = (argc == 2) ? argv[1] : "../data-sample/node.txt";
-    short fileErr = readFromFile(filename, &nys, &dataCar, &car, &nelem, &data_jt03, &jt03);
+    const char *outputFile = "./build/result.txt";
+    const char *inputFile = (argc == 2) ? argv[1] : "../data-sample/node.txt"; // !!!
+
+    short fileErr = readFromFile(inputFile, &nys, &dataCar, &car, &nelem, &data_jt03, &jt03);
     if (fileErr == 1) {
         free_memory(4, dataCar, car, data_jt03, jt03);
         exit(EXIT_FAILURE);
@@ -98,9 +105,11 @@ int main(int argc, char **argv) {
         exit(1);
     }
     stressModel(ndofysla, nelem, jt03, car, e, puas, u, strain, stress);
-    writeResult("result.txt", jt03, strain, stress, r, u, nelem, nys, ndof);
+
+    writeResult(outputFile, jt03, strain, stress, r, u, nelem, nys, ndof);
+
     drawMashForSolve(argc, argv);  // отрисовка модели, разбитой на КЭ
-    // освобождение памяти из под матрицы
+
     free_memory(16, dataStress, stress, dataStrain, strain, nodePres, nodeZakrU, nodeZakrV, u, r, x, dataKGLB,
                 kglb, dataCar, car, data_jt03, jt03);
 }

@@ -1,9 +1,8 @@
-#include "draw.h"
-
 #include <math.h>
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "draw.h"
 #include "defines.h"
 
 // Глобальные переменные для управления визуализацией

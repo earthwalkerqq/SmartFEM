@@ -3,7 +3,9 @@
 
 #define GL_SILENCE_DEPRECATION
 
+#ifndef LOAD
 #define LOAD 25000.  // Приложенная нагрузка
+#endif
 
 #define FLT_MAX 100.
 #define KOEF_X 25.

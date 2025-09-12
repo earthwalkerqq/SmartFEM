@@ -4,8 +4,8 @@
 #include <check.h>
 #include <stdlib.h>
 
-#include "../fem.h"
-#include "../formation_mtrx.h"
+#include "fem.h"
+#include "formation_mtrx.h"
 
 Suite *test_formatationDeformMtrx(void);
 Suite *test_formatationElastMtrx(void);
