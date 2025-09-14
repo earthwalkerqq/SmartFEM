@@ -1,14 +1,14 @@
 #include <gtk/gtk.h>
 
+#include "defines.h"
+
 void on_submit(GtkWidget *widget, gpointer data) {
     GtkEntry **entries = (GtkEntry **)data;
     const char *e_str = gtk_entry_get_text(entries[0]);
     const char *nu_str = gtk_entry_get_text(entries[1]);
 
-    double E = atof(e_str);
-    double nu = atof(nu_str);
-
-    g_print("E = %lf, nu = %lf\n", E, nu);
+    const double E = atof(e_str);
+    const double nu = atof(nu_str);
 }
 
 int main(int argc, char *argv[]) {
@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
 
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Параметры материала");
-    gtk_container_set_border_width(GTK_CONTAINER(window), 10);
+    gtk_container_set_border_width(GTK_CONTAINER(window), 20);
 
     GtkWidget *grid = gtk_grid_new();
     gtk_container_add(GTK_CONTAINER(window), grid);
