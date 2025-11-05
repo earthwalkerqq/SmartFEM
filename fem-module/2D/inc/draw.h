@@ -3,9 +3,16 @@
 
 #define GL_SILENCE_DEPRECATION
 
-#include "GL/glew.h"
-#include "GLFW/glfw3.h"
-#include "glut.h"
+// Для macOS используем встроенные frameworks
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#include <GLUT/glut.h>
+#else
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <GL/glut.h>
+#endif
 
 #define GLUT_WINDOW_POSITION_X 100  // Позиция окна (по оси x)
 #define GLUT_WINDOW_POSITION_Y 100  // Позиция окна (по оси y)

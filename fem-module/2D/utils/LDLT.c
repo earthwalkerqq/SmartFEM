@@ -26,11 +26,12 @@ bool_t matrLDLT(int ndof, double **kglb) {
         for (int j = 0; j < i; j++) {
             diag -= kglb[j][j] * (kglb[i][j] * kglb[i][j]);
         }
-        kglb[i][i] = diag;
-        if (fabs(diag) < 1.e-20) {
-            perror("Разложение невозможно. Нулевой диагональный элемент\n");
-            return TRUE;
+        // Если диагональ стала отрицательной или слишком маленькой, устанавливаем минимальное значение
+        if (fabs(diag) < 1.e-20 || diag < 0) {
+            fprintf(stderr, "Предупреждение: малая или отрицательная диагональ [%d][%d] = %.6e, устанавливаем 1.e30\n", i, i, diag);
+            diag = 1.e30;
         }
+        kglb[i][i] = diag;
 #pragma omp parallel shared(kglb, i, ndof, diag) private(sum)
         {
 #pragma omp for

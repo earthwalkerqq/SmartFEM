@@ -20,14 +20,18 @@ else
 	LINUX_FLAGS := -lm -lrt -lpthread -lsubunit 
 endif
 
-CFLAGS := -Wall -Werror -Wextra -Iinc \
+CFLAGS := -Wall -Werror -Wextra -Iinc -Iutils \
 	-I$(LIBOMP_PATH)/include \
 	-I$(CHECK_PATH)/include
 
 GCOV_FLAGS := -fprofile-arcs -ftest-coverage
 
-SRC_FILES := $(wildcard src/*.c)
+SRC_FILES := $(filter-out src/draw.c,$(wildcard src/*.c))
 OBJ_FILES := $(patsubst src/%.c,$(BUILD_FOLDER)/%.o,$(SRC_FILES))
+
+# utils sources included into static library
+UTILS_SRC := utils/mtrx.c utils/LDLT.c
+UTILS_OBJ := $(patsubst utils/%.c,$(BUILD_FOLDER)/utils_%.o,$(UTILS_SRC))
 
 TEST_FILES := $(wildcard tests/test_*.c)
 
@@ -65,14 +69,21 @@ $(BUILD_FOLDER):
 $(BUILD_FOLDER)/%.o: src/%.c | $(BUILD_FOLDER)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(FEM_LIB): $(OBJ_FILES)
+$(BUILD_FOLDER)/utils_%.o: utils/%.c | $(BUILD_FOLDER)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(FEM_LIB): $(OBJ_FILES) $(UTILS_OBJ)
 	ar $(ARFLAGS) $@ $^
 
-fem: check_deps $(FEM_LIB)
+# draw.c compiled separately for fem executable (not in library)
+$(BUILD_FOLDER)/draw.o: src/draw.c | $(BUILD_FOLDER)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+fem: check_deps $(FEM_LIB) $(BUILD_FOLDER)/draw.o
 ifeq ($(OS),Darwin)
-	$(CC) $(CFLAGS) main.c $(FEM_LIB) -o $(BUILD_FOLDER)/fem $(MAC_FLAGS) $(FEM_FLAG)
+	$(CC) $(CFLAGS) main.c $(BUILD_FOLDER)/draw.o $(FEM_LIB) -o $(BUILD_FOLDER)/fem $(MAC_FLAGS) $(FEM_FLAG)
 else
-	$(CC) $(CFLAGS) main.c $(FEM_LIB) -o $(BUILD_FOLDER)/fem $(LINUX_FLAGS) $(FEM_FLAG)
+	$(CC) $(CFLAGS) main.c $(BUILD_FOLDER)/draw.o $(FEM_LIB) -o $(BUILD_FOLDER)/fem $(LINUX_FLAGS) $(FEM_FLAG)
 endif
 	./$(BUILD_FOLDER)/fem
 

@@ -11,7 +11,7 @@
 #define DIMENSION 2 // по умолчанию рассматривается 2D задача
 #endif
 
-typedef enum bool_t bool_t;
+typedef enum { FALSE = 0, TRUE } bool_t;
 
 void initHyperMesh(char *inputFile, char *outputMeshFile, double clmin, double clmax, int *error);
 bool_t hyperMesh(char *cadFile, double clmin, double clmax);

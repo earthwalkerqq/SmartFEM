@@ -3,7 +3,7 @@
 #include "io.h"
 #include "mtrx.h"
 
-bool_t readFromFile(char *filename, int *nys, double **dataCar, double ***car, int *nelem, int **data_jt03,
+bool_t readFromFile(const char *filename, int *nys, double **dataCar, double ***car, int *nelem, int **data_jt03,
                     int ***jt03) {
     bool_t err = FALSE;
     FILE *file = fopen(filename, "r");
@@ -32,7 +32,7 @@ bool_t readFromFile(char *filename, int *nys, double **dataCar, double ***car, i
     return err;
 }
 
-bool_t writeResult(char *filename, int **jt03, double **strain, double **stress, double *r, double *u,
+bool_t writeResult(const char *filename, int **jt03, double **strain, double **stress, double *r, double *u,
                    int nelem, int nys, int ndof) {
     bool_t error = FALSE;
     FILE *file = fopen(filename, "w");
