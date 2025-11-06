@@ -9,12 +9,14 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     nodeselectionwindow.cpp \
-    meshviewer.cpp
+    meshviewer.cpp \
+    meshviewerwindow.cpp
 
 HEADERS += \
     mainwindow.h \
     nodeselectionwindow.h \
-    meshviewer.h
+    meshviewer.h \
+    meshviewerwindow.h
 
 # Используем относительные пути (от директории сборки)
 DESTDIR = ../../build

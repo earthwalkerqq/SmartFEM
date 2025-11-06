@@ -3,6 +3,7 @@
 // reuse 2D FEM IO and assembly
 #include "io.h"
 #include "fem.h"
+#include "bc.h"  // для применения граничных условий
 #include <math.h>
 #include <stdlib.h>
 
@@ -10,29 +11,116 @@ void print_modal_info(const modal_info *info) {
 	printf("modes=%d, ndof=%d\n", info ? info->numModes : 0, info ? info->ndof : 0);
 }
 
-static void normalize_M(double *v, const double *M_diag, int ndof) {
+static void normalize_M(double *v, const double *M_diag, int ndof, double **K) {
 	double dot = 0.0;
-	for (int i = 0; i < ndof; i++) dot += M_diag[i] * v[i] * v[i];
+	for (int i = 0; i < ndof; i++) {
+		// Пропускаем закрепленные DOF
+		if (K[i][i] <= 1.e30) {
+			dot += M_diag[i] * v[i] * v[i];
+		}
+	}
 	double invNorm = (dot > 0.0) ? 1.0 / sqrt(dot) : 1.0;
-	for (int i = 0; i < ndof; i++) v[i] *= invNorm;
+	for (int i = 0; i < ndof; i++) {
+		if (K[i][i] <= 1.e30) {
+			v[i] *= invNorm;
+		} else {
+			v[i] = 0.0;  // Убеждаемся, что закрепленные DOF обнулены
+		}
+	}
 }
 
 static double rayleigh_generalized(const double *v, double **K, const double *M_diag, int ndof) {
 	double num = 0.0, den = 0.0;
+	
+	// Сначала убеждаемся, что все закрепленные DOF обнулены
 	for (int i = 0; i < ndof; i++) {
-		double Kv_i = 0.0;
-		for (int j = 0; j < ndof; j++) Kv_i += K[i][j] * v[j];
-		num += v[i] * Kv_i;
-		den += M_diag[i] * v[i] * v[i];
+		if (K[i][i] > 1.e30 && fabs(v[i]) > 1.e-15) {
+			// Если закрепленный DOF имеет ненулевую компоненту, это ошибка
+			// Но мы не можем изменить const вектор, поэтому просто пропускаем его
+		}
 	}
-	return (den > 0.0) ? (num / den) : 0.0;
+	
+	for (int i = 0; i < ndof; i++) {
+		// Пропускаем закрепленные DOF
+		if (K[i][i] > 1.e30) continue;
+		
+		// Пропускаем очень маленькие компоненты (могут быть из-за ошибок округления)
+		if (fabs(v[i]) < 1.e-15) continue;
+		
+		// Вычисляем (K*v)[i] только для незакрепленных DOF
+		double Kv_i = 0.0;
+		for (int j = 0; j < ndof; j++) {
+			// Пропускаем закрепленные DOF в сумме
+			if (K[j][j] > 1.e30) continue;
+			
+			// Пропускаем очень маленькие компоненты v[j]
+			if (fabs(v[j]) < 1.e-15) continue;
+			
+			Kv_i += K[i][j] * v[j];
+		}
+		
+		num += v[i] * Kv_i;
+		
+		// Пропускаем закрепленные DOF в знаменателе
+		if (M_diag[i] > 1.e-9) {  // Игнорируем очень маленькую массу
+			den += M_diag[i] * v[i] * v[i];
+		}
+	}
+	
+	// Проверяем, что числитель и знаменатель имеют правильные знаки
+	if (den <= 1.e-20) {
+		return 0.0;  // Знаменатель слишком мал
+	}
+	
+	double lambda = num / den;
+	
+	// Если lambda отрицательное, это серьезная проблема
+	// Матрица K положительно определенная, поэтому lambda должно быть положительным
+	if (lambda < 0.0) {
+		// Попробуем пересчитать более аккуратно
+		num = 0.0;
+		den = 0.0;
+		for (int i = 0; i < ndof; i++) {
+			if (K[i][i] > 1.e30) continue;  // Пропускаем закрепленные DOF
+			if (fabs(v[i]) < 1.e-12) continue;  // Пропускаем очень маленькие компоненты
+			
+			double Kv_i = 0.0;
+			for (int j = 0; j < ndof; j++) {
+				if (K[j][j] > 1.e30) continue;  // Пропускаем закрепленные DOF
+				if (fabs(v[j]) < 1.e-12) continue;  // Пропускаем очень маленькие компоненты
+				Kv_i += K[i][j] * v[j];
+			}
+			num += v[i] * Kv_i;
+			if (M_diag[i] > 1.e-9) {
+				den += M_diag[i] * v[i] * v[i];
+			}
+		}
+		if (den > 1.e-20) {
+			lambda = num / den;
+		} else {
+			lambda = 0.0;
+		}
+	}
+	
+	return lambda;
 }
 
 static void K_mul(const double **K, const double *x, double *y, int n) {
 	for (int i = 0; i < n; i++) {
 		double s = 0.0;
-		for (int j = 0; j < n; j++) s += K[i][j] * x[j];
-		y[i] = s;
+		// Для закрепленных DOF результат всегда 0 (кроме диагонали, которая очень большая)
+		if (K[i][i] > 1.e30) {
+			// Для закрепленного DOF: y[i] = K[i][i] * x[i], но x[i] должно быть 0
+			y[i] = K[i][i] * x[i];  // Это будет 0, так как x[i] = 0 для закрепленных DOF
+		} else {
+			for (int j = 0; j < n; j++) {
+				// Пропускаем закрепленные DOF в сумме
+				if (K[j][j] <= 1.e30) {
+					s += K[i][j] * x[j];
+				}
+			}
+			y[i] = s;
+		}
 	}
 }
 
@@ -43,21 +131,58 @@ static void cg_solve(double **K, const double *b, double *x, int n, int maxIter,
 	double *Ap = (double *)malloc(n * sizeof(double));
 	// r = b - Kx (x=0 initially)
 	for (int i = 0; i < n; i++) r[i] = b[i];
+	
+	// Для закрепленных DOF (где K[i][i] очень большое), сразу устанавливаем x[i] = 0
+	// и обнуляем соответствующую компоненту невязки
+	for (int i = 0; i < n; i++) {
+		if (K[i][i] > 1.e30) {  // Закрепленный DOF
+			x[i] = 0.0;
+			r[i] = 0.0;
+		}
+	}
+	
 	for (int i = 0; i < n; i++) p[i] = r[i];
 	double rsold = 0.0; for (int i = 0; i < n; i++) rsold += r[i] * r[i];
 	for (int it = 0; it < maxIter; it++) {
 		K_mul((const double **)K, p, Ap, n);
+		
+		// Для закрепленных DOF обнуляем Ap и p
+		for (int i = 0; i < n; i++) {
+			if (K[i][i] > 1.e30) {  // Закрепленный DOF
+				Ap[i] = 0.0;
+				p[i] = 0.0;
+			}
+		}
+		
 		double pAp = 0.0; for (int i = 0; i < n; i++) pAp += p[i] * Ap[i];
 		if (fabs(pAp) < 1e-20) break;
 		double alpha = rsold / pAp;
-		for (int i = 0; i < n; i++) x[i] += alpha * p[i];
-		for (int i = 0; i < n; i++) r[i] -= alpha * Ap[i];
+		for (int i = 0; i < n; i++) {
+			if (K[i][i] <= 1.e30) {  // Только для незакрепленных DOF
+				x[i] += alpha * p[i];
+				r[i] -= alpha * Ap[i];
+			}
+		}
 		double rsnew = 0.0; for (int i = 0; i < n; i++) rsnew += r[i] * r[i];
 		if (sqrt(rsnew) < tol) break;
 		double beta = rsnew / rsold;
-		for (int i = 0; i < n; i++) p[i] = r[i] + beta * p[i];
+		for (int i = 0; i < n; i++) {
+			if (K[i][i] <= 1.e30) {  // Только для незакрепленных DOF
+				p[i] = r[i] + beta * p[i];
+			} else {
+				p[i] = 0.0;
+			}
+		}
 		rsold = rsnew;
 	}
+	
+	// Финальная проверка: принудительно обнуляем закрепленные DOF в решении
+	for (int i = 0; i < n; i++) {
+		if (K[i][i] > 1.e30) {
+			x[i] = 0.0;  // Принудительно обнуляем закрепленные DOF
+		}
+	}
+	
 	free(Ap); free(p); free(r);
 }
 
@@ -132,41 +257,144 @@ int compute_modal_eigenpairs(int numModes, double **K, double *M_diag, int ndof,
 	static int rand_initialized = 0;
 	if (!rand_initialized) { srand(12345); rand_initialized = 1; }
 	for (int m = 0; m < numModes; m++) {
+		printf("Computing mode %d/%d...\n", m + 1, numModes);
+		fflush(stdout);
+		
 		double *v = eigenVecs[m];
 		if (!v) return 1;
 		// init random
 		for (int i = 0; i < ndof; i++) v[i] = (double)rand() / RAND_MAX;
+		
+		// Обнуляем компоненты для закрепленных DOF
+		for (int i = 0; i < ndof; i++) {
+			if (K[i][i] > 1.e30) {  // Закрепленный DOF
+				v[i] = 0.0;
+			}
+		}
+		
 		// M-orthogonalize vs previous modes
 		for (int p = 0; p < m; p++) {
 			double dot = 0.0;
-			for (int i = 0; i < ndof; i++) dot += M_diag[i] * v[i] * eigenVecs[p][i];
-			for (int i = 0; i < ndof; i++) v[i] -= dot * eigenVecs[p][i];
+			for (int i = 0; i < ndof; i++) {
+				// Пропускаем закрепленные DOF
+				if (K[i][i] <= 1.e30) {
+					dot += M_diag[i] * v[i] * eigenVecs[p][i];
+				}
+			}
+			for (int i = 0; i < ndof; i++) {
+				if (K[i][i] <= 1.e30) {
+					v[i] -= dot * eigenVecs[p][i];
+				} else {
+					v[i] = 0.0;
+				}
+			}
 		}
-		normalize_M(v, M_diag, ndof);
+		normalize_M(v, M_diag, ndof, K);
 		double prevLambda = 0.0;
 		for (int it = 0; it < maxIter; it++) {
+			if (it > 0 && it % 50 == 0) {
+				printf("  Mode %d: iteration %d/%d, lambda=%.6e\n", m + 1, it, maxIter, prevLambda);
+				fflush(stdout);
+			}
 			// y = K^{-1} (M v) using CG
 			double *Mv = (double *)malloc(ndof * sizeof(double));
 			double *y = (double *)malloc(ndof * sizeof(double));
-			for (int i = 0; i < ndof; i++) Mv[i] = M_diag[i] * v[i];
+			for (int i = 0; i < ndof; i++) {
+				if (K[i][i] <= 1.e30) {
+					Mv[i] = M_diag[i] * v[i];
+				} else {
+					Mv[i] = 0.0;  // Обнуляем для закрепленных DOF
+				}
+			}
 			cg_solve(K, Mv, y, ndof, 1000, 1e-8);
 			free(Mv);
+			
+			// Принудительно обнуляем закрепленные DOF в решении CG
+			for (int i = 0; i < ndof; i++) {
+				if (K[i][i] > 1.e30) {
+					y[i] = 0.0;  // Принудительно обнуляем закрепленные DOF
+				}
+			}
+			
 			// M-orthogonalize y vs previous modes
 			for (int p = 0; p < m; p++) {
 				double dot = 0.0;
-				for (int i = 0; i < ndof; i++) dot += M_diag[i] * y[i] * eigenVecs[p][i];
-				for (int i = 0; i < ndof; i++) y[i] -= dot * eigenVecs[p][i];
+				for (int i = 0; i < ndof; i++) {
+					// Пропускаем закрепленные DOF
+					if (K[i][i] <= 1.e30) {
+						dot += M_diag[i] * y[i] * eigenVecs[p][i];
+					}
+				}
+				for (int i = 0; i < ndof; i++) {
+					if (K[i][i] <= 1.e30) {
+						y[i] -= dot * eigenVecs[p][i];
+					} else {
+						y[i] = 0.0;
+					}
+				}
 			}
 			// normalize to M-norm
 			for (int i = 0; i < ndof; i++) v[i] = y[i];
+			
+			// Обнуляем компоненты для закрепленных DOF
+			for (int i = 0; i < ndof; i++) {
+				if (K[i][i] > 1.e30) {  // Закрепленный DOF
+					v[i] = 0.0;
+				}
+			}
+			
 			free(y);
-			normalize_M(v, M_diag, ndof);
+			normalize_M(v, M_diag, ndof, K);
+			
+			// Дополнительная проверка: убеждаемся, что все закрепленные DOF обнулены
+			for (int i = 0; i < ndof; i++) {
+				if (K[i][i] > 1.e30) {
+					v[i] = 0.0;  // Принудительно обнуляем закрепленные DOF
+				}
+			}
+			
+			// Перенормализуем после обнуления закрепленных DOF
+			normalize_M(v, M_diag, ndof, K);
+			
+			// Еще раз обнуляем закрепленные DOF после нормализации (на случай ошибок округления)
+			for (int i = 0; i < ndof; i++) {
+				if (K[i][i] > 1.e30) {
+					v[i] = 0.0;
+				}
+			}
+			
 			double lambda = rayleigh_generalized(v, K, M_diag, ndof);
-			if (fabs(lambda - prevLambda) < tol * fmax(1.0, lambda)) {
+			
+			// Проверяем, что lambda положительное
+			if (lambda < 0.0) {
+				printf("  Warning: Mode %d has negative lambda=%.6e, trying to fix...\n", m + 1, lambda);
+				fflush(stdout);
+				// Если lambda отрицательное, возможно проблема с граничными условиями
+				// Пропускаем эту итерацию и продолжаем
+				if (it > 100) {
+					// Если после 100 итераций все еще отрицательное, что-то не так
+					printf("  Error: Mode %d failed to converge to positive lambda after %d iterations\n", m + 1, it + 1);
+					fflush(stdout);
+					eigenVals[m] = lambda;  // Сохраняем даже отрицательное значение для диагностики
+					break;
+				}
+			}
+			
+			if (lambda > 0.0 && fabs(lambda - prevLambda) < tol * fmax(1.0, lambda)) {
 				eigenVals[m] = lambda;
+				double omega = sqrt(lambda);
+				double freq = omega / (2.0 * 3.141592653589793);
+				printf("  Mode %d converged after %d iterations: lambda=%.6e, f=%.6e Hz\n", m + 1, it + 1, lambda, freq);
+				fflush(stdout);
 				break;
 			}
 			prevLambda = lambda;
+		}
+		if (prevLambda == 0.0) {
+			// Если не сошлось, все равно сохраняем последнее значение
+			eigenVals[m] = prevLambda;
+			printf("  Mode %d: maximum iterations reached, lambda=%.6e\n", m + 1, prevLambda);
+			fflush(stdout);
 		}
 	}
 	return 0;

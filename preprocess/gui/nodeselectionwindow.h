@@ -17,8 +17,8 @@
 #include <QMap>
 #include <QSet>
 
-// Forward declaration
-class MeshViewer;
+// Forward declarations
+class MeshViewerWindow;
 
 class NodeSelectionWindow : public QDialog {
     Q_OBJECT
@@ -72,8 +72,8 @@ private:
     QPushButton *saveBtn;
     QPushButton *cancelBtn;
     
-    // Встроенный визуализатор модели
-    MeshViewer *meshViewer;
+    // Отдельное окно для визуализации модели
+    MeshViewerWindow *meshViewerWindow;
     
     // Данные
     QMap<int, QPair<double, double>> nodeCoords;  // node_id -> (x, y)

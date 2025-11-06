@@ -1,5 +1,5 @@
 #include "nodeselectionwindow.h"
-#include "meshviewer.h"
+#include "meshviewerwindow.h"
 #include <QFile>
 #include <QTextStream>
 #include <QMessageBox>
@@ -12,20 +12,94 @@
 #include <QSplitter>
 
 NodeSelectionWindow::NodeSelectionWindow(const QString &mshFile, const QString &nodeFile, QWidget *parent)
-    : QDialog(parent), mshFile(mshFile), nodeFile(nodeFile) {
+    : QDialog(parent), mshFile(mshFile), nodeFile(nodeFile), meshViewerWindow(nullptr) {
     setWindowTitle("Выбор узлов для граничных условий");
-    setMinimumSize(1400, 900);
-    resize(1600, 1000);
+    setMinimumSize(600, 700);  // Уменьшили минимальный размер, так как визуализатор в отдельном окне
+    resize(800, 800);
     
     setupUI();
     readNodeFile();
     
-    // Загружаем модель в визуализатор
+    // Создаем отдельное окно для визуализации модели
     if (QFileInfo::exists(mshFile)) {
-        meshViewer->loadMesh(nodeFile, mshFile);
+        meshViewerWindow = new MeshViewerWindow(nodeFile, mshFile, this);
     } else {
-        meshViewer->loadMesh(nodeFile);
+        meshViewerWindow = new MeshViewerWindow(nodeFile, QString(), this);
     }
+    
+    // Подключаем сигналы от окна визуализации
+    // Одиночный клик - только обновляет поле ввода, не подсвечивает узел
+    connect(meshViewerWindow, &MeshViewerWindow::nodeClicked, [this](int nodeId, const QPointF &coords) {
+        if (nodeId > 0 && nodeCoords.contains(nodeId)) {
+            nodeIdEdit->setText(QString::number(nodeId));
+            // Не подсвечиваем узел при одиночном клике
+        }
+    });
+    
+    // Подключаем сигнал для множественного выбора
+    connect(meshViewerWindow, &MeshViewerWindow::nodesSelected, [this](const QSet<int> &nodeIds) {
+        if (nodeIds.isEmpty()) return;
+        
+        // Обновляем визуализатор
+        selectedNodesInViewer.unite(nodeIds);
+        if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+            meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
+        }
+        
+        // Добавляем информацию о выбранных узлах
+        QStringList nodeIdList;
+        for (int nodeId : nodeIds) {
+            if (nodeCoords.contains(nodeId)) {
+                QPair<double, double> coords = nodeCoords[nodeId];
+                nodeIdList.append(QString::number(nodeId));
+                meshInfoText->append(QString("✓ Выбран узел %1: (%.2f, %.2f)\n").arg(nodeId).arg(coords.first).arg(coords.second));
+            }
+        }
+        
+        // Устанавливаем все выбранные узлы в поле ввода (через запятую, если их много)
+        if (!nodeIdList.isEmpty()) {
+            if (nodeIdList.size() <= 10) {
+                // Если узлов немного, показываем все через запятую
+                nodeIdEdit->setText(nodeIdList.join(", "));
+            } else {
+                // Если узлов много, показываем диапазон
+                QString first = nodeIdList.first();
+                QString last = nodeIdList.last();
+                nodeIdEdit->setText(QString("%1 ... %2 (%3 узлов)").arg(first).arg(last).arg(nodeIdList.size()));
+            }
+        }
+        
+        meshInfoText->append(QString("Всего выбрано узлов: %1\n").arg(nodeIds.size()));
+    });
+    
+    connect(meshViewerWindow, &MeshViewerWindow::nodeDoubleClicked, [this](int nodeId, const QPointF &coords) {
+        if (nodeId > 0 && nodeCoords.contains(nodeId)) {
+            nodeIdEdit->setText(QString::number(nodeId));
+            
+            // Подсвечиваем узел в визуализаторе при двойном клике
+            selectedNodesInViewer.insert(nodeId);
+            if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+                meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
+            }
+            
+            meshInfoText->append(QString("✓ Выбран узел %1: (%.2f, %.2f)\n").arg(nodeId).arg(coords.x()).arg(coords.y()));
+            
+            // Автоматически добавляем в зависимости от типа
+            int type = constraintTypeCombo->currentIndex();
+            if (type < 2) {
+                addFixedNode();
+            } else {
+                if (loadFxEdit->value() != 0.0 || loadFyEdit->value() != 0.0) {
+                    addLoadNode();
+                } else {
+                    meshInfoText->append(QString("Узел %1 выбран. Задайте значения сил Fx и Fy, затем нажмите 'Добавить нагрузку'\n").arg(nodeId));
+                }
+            }
+        }
+    });
+    
+    // Показываем окно визуализации
+    meshViewerWindow->show();
 }
 
 NodeSelectionWindow::~NodeSelectionWindow() {
@@ -112,7 +186,7 @@ void NodeSelectionWindow::setupUI() {
     });
     
     nodeListWidget = new QListWidget(this);
-    nodeListWidget->setMaximumWidth(350);
+    nodeListWidget->setMaximumWidth(280);  // Уменьшили с 350 до 280
     nodeListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     nodeListWidget->setAlternatingRowColors(true);
     nodeListLayout->addWidget(nodeListWidget);
@@ -272,69 +346,38 @@ void NodeSelectionWindow::setupUI() {
     nodeLayout->addWidget(formGroup);
     leftLayout->addWidget(nodeGroup);
     
-    // Правая часть - визуализатор модели
-    QGroupBox *viewerGroup = new QGroupBox("Визуализация модели (кликните на узел для выбора)", this);
-    QVBoxLayout *viewerLayout = new QVBoxLayout(viewerGroup);
-    
-    meshViewer = new MeshViewer(this);
-    meshViewer->setMinimumSize(900, 700);
-    meshViewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    viewerLayout->addWidget(meshViewer);
-    
-    // Подключаем сигналы от визуализатора
-    connect(meshViewer, &MeshViewer::nodeClicked, [this](int nodeId, const QPointF &coords) {
-        if (nodeId > 0 && nodeCoords.contains(nodeId)) {
-            nodeIdEdit->setText(QString::number(nodeId));
-            meshInfoText->append(QString("✓ Выбран узел %1: (%.2f, %.2f)\n").arg(nodeId).arg(coords.x()).arg(coords.y()));
-            
-            // Подсвечиваем узел в визуализаторе
-            selectedNodesInViewer.insert(nodeId);
-            meshViewer->setSelectedNodes(selectedNodesInViewer);
+    // Кнопка для открытия окна визуализации модели
+    QPushButton *openViewerBtn = new QPushButton("Открыть окно визуализации модели", this);
+    openViewerBtn->setStyleSheet("QPushButton { background-color: #2196F3; color: white; padding: 15px; font-size: 14px; font-weight: bold; }");
+    openViewerBtn->setMinimumHeight(50);
+    connect(openViewerBtn, &QPushButton::clicked, [this]() {
+        if (meshViewerWindow) {
+            meshViewerWindow->show();
+            meshViewerWindow->raise();
+            meshViewerWindow->activateWindow();
         }
     });
     
-    connect(meshViewer, &MeshViewer::nodeDoubleClicked, [this](int nodeId, const QPointF &coords) {
-        if (nodeId > 0 && nodeCoords.contains(nodeId)) {
-            nodeIdEdit->setText(QString::number(nodeId));
-            // Автоматически добавляем в зависимости от типа
-            int type = constraintTypeCombo->currentIndex();
-            if (type < 2) {
-                addFixedNode();
-            } else {
-                if (loadFxEdit->value() != 0.0 || loadFyEdit->value() != 0.0) {
-                    addLoadNode();
-                } else {
-                    meshInfoText->append(QString("Узел %1 выбран. Задайте значения сил Fx и Fy, затем нажмите 'Добавить нагрузку'\n").arg(nodeId));
-                }
-            }
-        }
-    });
-    
-    // Добавляем виджеты в splitter
-    mainSplitter->addWidget(leftWidget);
-    mainSplitter->addWidget(viewerGroup);
-    mainSplitter->setStretchFactor(0, 1);
-    mainSplitter->setStretchFactor(1, 3);  // Увеличиваем долю визуализатора
-    mainSplitter->setSizes(QList<int>() << 400 << 1200);  // Устанавливаем начальные размеры
-    
-    mainLayout->addWidget(mainSplitter);
+    // Добавляем виджеты в layout (без splitter, так как визуализатор в отдельном окне)
+    mainLayout->addWidget(leftWidget);
+    mainLayout->addWidget(openViewerBtn);
     
     // Списки выбранных узлов
     QGroupBox *selectedGroup = new QGroupBox("Выбранные узлы", this);
     QHBoxLayout *selectedLayout = new QHBoxLayout(selectedGroup);
     
     fixedUListWidget = new QListWidget(this);
-    fixedUListWidget->setMaximumWidth(200);
+    fixedUListWidget->setMaximumWidth(150);  // Уменьшили с 200 до 150
     selectedLayout->addWidget(new QLabel("Закрепления U:", this));
     selectedLayout->addWidget(fixedUListWidget);
     
     fixedVListWidget = new QListWidget(this);
-    fixedVListWidget->setMaximumWidth(200);
+    fixedVListWidget->setMaximumWidth(150);  // Уменьшили с 200 до 150
     selectedLayout->addWidget(new QLabel("Закрепления V:", this));
     selectedLayout->addWidget(fixedVListWidget);
     
     loadedListWidget = new QListWidget(this);
-    loadedListWidget->setMaximumWidth(200);
+    loadedListWidget->setMaximumWidth(150);  // Уменьшили с 200 до 150
     selectedLayout->addWidget(new QLabel("Нагрузки:", this));
     selectedLayout->addWidget(loadedListWidget);
     
@@ -437,31 +480,97 @@ void NodeSelectionWindow::selectNodesVisual() {
 }
 
 void NodeSelectionWindow::addFixedNode() {
-    bool ok;
-    int nodeId = nodeIdEdit->text().toInt(&ok);
+    // Получаем узлы для добавления: либо из поля ввода, либо из выбранных узлов
+    QSet<int> nodesToAdd;
     
-    if (!ok || nodeId < 1 || !nodeCoords.contains(nodeId)) {
-        QMessageBox::warning(this, "Ошибка", "Введите корректный номер узла!");
+    // Сначала пытаемся получить узлы из поля ввода
+    QString nodeText = nodeIdEdit->text().trimmed();
+    if (!nodeText.isEmpty()) {
+        // Пытаемся распарсить как число
+        bool ok;
+        int nodeId = nodeText.toInt(&ok);
+        if (ok && nodeId > 0 && nodeCoords.contains(nodeId)) {
+            nodesToAdd.insert(nodeId);
+        } else {
+            // Пытаемся распарсить как список узлов (через запятую)
+            QStringList parts = nodeText.split(",", Qt::SkipEmptyParts);
+            for (const QString &part : parts) {
+                QString trimmed = part.trimmed();
+                // Убираем возможные скобки и текст вроде "(115 узлов)"
+                if (trimmed.contains("(")) {
+                    trimmed = trimmed.split("(")[0].trimmed();
+                }
+                if (trimmed.contains("...")) {
+                    // Это диапазон, пропускаем
+                    continue;
+                }
+                int id = trimmed.toInt(&ok);
+                if (ok && id > 0 && nodeCoords.contains(id)) {
+                    nodesToAdd.insert(id);
+                }
+            }
+        }
+    }
+    
+    // Если не удалось получить узлы из поля ввода, используем выбранные узлы
+    if (nodesToAdd.isEmpty() && !selectedNodesInViewer.isEmpty()) {
+        nodesToAdd = selectedNodesInViewer;
+    }
+    
+    if (nodesToAdd.isEmpty()) {
+        QMessageBox::warning(this, "Ошибка", "Выберите узлы для добавления закрепления!");
         return;
     }
     
     // Обновляем визуализатор
-    selectedNodesInViewer.insert(nodeId);
-    meshViewer->setSelectedNodes(selectedNodesInViewer);
+    selectedNodesInViewer.unite(nodesToAdd);
+    if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+        meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
+    }
     
     int type = constraintTypeCombo->currentIndex();
-    QString nodeStr = QString::number(nodeId);
+    int addedCount = 0;
     
     if (type == 0) {  // Закрепление по U
-        if (!fixedNodesU.contains(nodeStr)) {
-            fixedNodesU.append(nodeStr);
-            fixedUListWidget->addItem(QString("Узел %1").arg(nodeId));
+        for (int nodeId : nodesToAdd) {
+            QString nodeStr = QString::number(nodeId);
+            if (!fixedNodesU.contains(nodeStr)) {
+                fixedNodesU.append(nodeStr);
+                fixedUListWidget->addItem(QString("Узел %1").arg(nodeId));
+                addedCount++;
+            }
+        }
+        
+        // Обновляем визуализацию
+        if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+            QSet<int> fixedU;
+            for (const QString &n : fixedNodesU) {
+                fixedU.insert(n.toInt());
+            }
+            meshViewerWindow->getMeshViewer()->setFixedNodesU(fixedU);
         }
     } else if (type == 1) {  // Закрепление по V
-        if (!fixedNodesV.contains(nodeStr)) {
-            fixedNodesV.append(nodeStr);
-            fixedVListWidget->addItem(QString("Узел %1").arg(nodeId));
+        for (int nodeId : nodesToAdd) {
+            QString nodeStr = QString::number(nodeId);
+            if (!fixedNodesV.contains(nodeStr)) {
+                fixedNodesV.append(nodeStr);
+                fixedVListWidget->addItem(QString("Узел %1").arg(nodeId));
+                addedCount++;
+            }
         }
+        
+        // Обновляем визуализацию
+        if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+            QSet<int> fixedV;
+            for (const QString &n : fixedNodesV) {
+                fixedV.insert(n.toInt());
+            }
+            meshViewerWindow->getMeshViewer()->setFixedNodesV(fixedV);
+        }
+    }
+    
+    if (addedCount > 0) {
+        meshInfoText->append(QString("✓ Добавлено закреплений: %1\n").arg(addedCount));
     }
     
     nodeIdEdit->clear();
@@ -469,17 +578,47 @@ void NodeSelectionWindow::addFixedNode() {
 }
 
 void NodeSelectionWindow::addLoadNode() {
-    bool ok;
-    int nodeId = nodeIdEdit->text().toInt(&ok);
+    // Получаем узлы для добавления: либо из поля ввода, либо из выбранных узлов
+    QSet<int> nodesToAdd;
     
-    if (!ok || nodeId < 1 || !nodeCoords.contains(nodeId)) {
-        QMessageBox::warning(this, "Ошибка", "Введите корректный номер узла!");
-        return;
+    // Сначала пытаемся получить узлы из поля ввода
+    QString nodeText = nodeIdEdit->text().trimmed();
+    if (!nodeText.isEmpty()) {
+        // Пытаемся распарсить как число
+        bool ok;
+        int nodeId = nodeText.toInt(&ok);
+        if (ok && nodeId > 0 && nodeCoords.contains(nodeId)) {
+            nodesToAdd.insert(nodeId);
+        } else {
+            // Пытаемся распарсить как список узлов (через запятую)
+            QStringList parts = nodeText.split(",", Qt::SkipEmptyParts);
+            for (const QString &part : parts) {
+                QString trimmed = part.trimmed();
+                // Убираем возможные скобки и текст вроде "(115 узлов)"
+                if (trimmed.contains("(")) {
+                    trimmed = trimmed.split("(")[0].trimmed();
+                }
+                if (trimmed.contains("...")) {
+                    // Это диапазон, пропускаем
+                    continue;
+                }
+                int id = trimmed.toInt(&ok);
+                if (ok && id > 0 && nodeCoords.contains(id)) {
+                    nodesToAdd.insert(id);
+                }
+            }
+        }
     }
     
-    // Обновляем визуализатор
-    selectedNodesInViewer.insert(nodeId);
-    meshViewer->setSelectedNodes(selectedNodesInViewer);
+    // Если не удалось получить узлы из поля ввода, используем выбранные узлы
+    if (nodesToAdd.isEmpty() && !selectedNodesInViewer.isEmpty()) {
+        nodesToAdd = selectedNodesInViewer;
+    }
+    
+    if (nodesToAdd.isEmpty()) {
+        QMessageBox::warning(this, "Ошибка", "Выберите узлы для добавления нагрузки!");
+        return;
+    }
     
     double fx = loadFxEdit->value();
     double fy = loadFyEdit->value();
@@ -489,21 +628,44 @@ void NodeSelectionWindow::addLoadNode() {
         return;
     }
     
-    QString nodeStr = QString::number(nodeId);
-    if (!loadedNodes.contains(nodeStr)) {
-        loadedNodes.append(nodeStr);
-        nodeLoads[nodeStr] = QPair<double, double>(fx, fy);
-        loadedListWidget->addItem(QString("Узел %1: Fx=%.2f, Fy=%.2f").arg(nodeId).arg(fx).arg(fy));
-    } else {
-        // Обновляем нагрузку
-        nodeLoads[nodeStr] = QPair<double, double>(fx, fy);
-        // Обновляем отображение
-        for (int i = 0; i < loadedListWidget->count(); i++) {
-            if (loadedListWidget->item(i)->text().startsWith(QString("Узел %1:").arg(nodeId))) {
-                loadedListWidget->item(i)->setText(QString("Узел %1: Fx=%.2f, Fy=%.2f").arg(nodeId).arg(fx).arg(fy));
-                break;
+    // Обновляем визуализатор
+    selectedNodesInViewer.unite(nodesToAdd);
+    if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+        meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
+    }
+    
+    int addedCount = 0;
+    for (int nodeId : nodesToAdd) {
+        QString nodeStr = QString::number(nodeId);
+        if (!loadedNodes.contains(nodeStr)) {
+            loadedNodes.append(nodeStr);
+            nodeLoads[nodeStr] = QPair<double, double>(fx, fy);
+            loadedListWidget->addItem(QString("Узел %1: Fx=%.2f, Fy=%.2f").arg(nodeId).arg(fx).arg(fy));
+            addedCount++;
+        } else {
+            // Обновляем нагрузку
+            nodeLoads[nodeStr] = QPair<double, double>(fx, fy);
+            // Обновляем отображение
+            for (int i = 0; i < loadedListWidget->count(); i++) {
+                if (loadedListWidget->item(i)->text().startsWith(QString("Узел %1:").arg(nodeId))) {
+                    loadedListWidget->item(i)->setText(QString("Узел %1: Fx=%.2f, Fy=%.2f").arg(nodeId).arg(fx).arg(fy));
+                    break;
+                }
             }
         }
+    }
+    
+    // Обновляем визуализацию сил
+    if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+        QMap<int, QPair<double, double>> loads;
+        for (auto it = nodeLoads.begin(); it != nodeLoads.end(); ++it) {
+            loads.insert(it.key().toInt(), it.value());
+        }
+        meshViewerWindow->getMeshViewer()->setLoadNodes(loads);
+    }
+    
+    if (addedCount > 0) {
+        meshInfoText->append(QString("✓ Добавлено нагрузок: %1\n").arg(addedCount));
     }
     
     nodeIdEdit->clear();
@@ -520,6 +682,15 @@ void NodeSelectionWindow::removeFixedNode() {
         fixedNodesU.removeAll(QString::number(nodeId));
         selectedNodesInViewer.remove(nodeId);
         delete item;
+        
+        // Обновляем визуализацию
+        if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+            QSet<int> fixedU;
+            for (const QString &n : fixedNodesU) {
+                fixedU.insert(n.toInt());
+            }
+            meshViewerWindow->getMeshViewer()->setFixedNodesU(fixedU);
+        }
     }
     
     item = fixedVListWidget->currentItem();
@@ -529,9 +700,20 @@ void NodeSelectionWindow::removeFixedNode() {
         fixedNodesV.removeAll(QString::number(nodeId));
         selectedNodesInViewer.remove(nodeId);
         delete item;
+        
+        // Обновляем визуализацию
+        if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+            QSet<int> fixedV;
+            for (const QString &n : fixedNodesV) {
+                fixedV.insert(n.toInt());
+            }
+            meshViewerWindow->getMeshViewer()->setFixedNodesV(fixedV);
+        }
     }
     
-    meshViewer->setSelectedNodes(selectedNodesInViewer);
+    if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+        meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
+    }
     emit boundaryConditionsChanged();
 }
 
@@ -539,12 +721,21 @@ void NodeSelectionWindow::removeLoadNode() {
     QListWidgetItem *item = loadedListWidget->currentItem();
     if (item) {
         QString text = item->text();
-        int nodeId = text.split(" ")[1].toInt();
+        int nodeId = text.split(" ")[1].split(":")[0].toInt();
         QString nodeStr = QString::number(nodeId);
         loadedNodes.removeAll(nodeStr);
         nodeLoads.remove(nodeStr);
         selectedNodesInViewer.remove(nodeId);
-        meshViewer->setSelectedNodes(selectedNodesInViewer);
+        if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+            meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
+            
+            // Обновляем визуализацию сил
+            QMap<int, QPair<double, double>> loads;
+            for (auto it = nodeLoads.begin(); it != nodeLoads.end(); ++it) {
+                loads.insert(it.key().toInt(), it.value());
+            }
+            meshViewerWindow->getMeshViewer()->setLoadNodes(loads);
+        }
         delete item;
     }
     

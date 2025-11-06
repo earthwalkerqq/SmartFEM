@@ -545,10 +545,18 @@ void MainWindow::processFinished(int exitCode, QProcess::ExitStatus exitStatus) 
                     return;
                 }
                 
+                // Устанавливаем рабочую директорию для модального анализа
+                // Результаты будут сохранены в fem-module/build/result.txt
+                modalProcess->setWorkingDirectory(projectRoot + "/fem-module/build");
+                
+                // Преобразуем путь к файлу сетки в абсолютный путь
+                QFileInfo meshFileInfo(meshFile);
+                QString absoluteMeshFile = meshFileInfo.absoluteFilePath();
+                
                 outputText->append(QString("Запуск модального модуля: %1 %2 %3 %4 %5\n")
-                    .arg(modalExecutable, meshFile, QString::number(numModes), QString::number(rho), QString::number(h)));
+                    .arg(modalExecutable, absoluteMeshFile, QString::number(numModes), QString::number(rho), QString::number(h)));
                 modalProcess->start(modalExecutable, 
-                    QStringList() << meshFile << QString::number(numModes) << QString::number(rho) << QString::number(h));
+                    QStringList() << absoluteMeshFile << QString::number(numModes) << QString::number(rho) << QString::number(h));
             } else {
                 outputText->append("Запуск FEM анализа...\n");
                 
@@ -589,11 +597,29 @@ void MainWindow::processFinished(int exitCode, QProcess::ExitStatus exitStatus) 
 
 void MainWindow::saveResultsToDesktop() {
     QString outputDir = outputDirEdit->text();
-    QString resultFileName = resultFileEdit->text().isEmpty() ? "result.txt" : resultFileEdit->text();
+    QString analysisType = analysisTypeCombo->currentText();
+    QString resultFileName;
+    
+    // Определяем имя файла в зависимости от типа анализа
+    if (analysisType.contains("Модальный")) {
+        resultFileName = resultFileEdit->text().isEmpty() ? "Modal_result.txt" : resultFileEdit->text();
+    } else {
+        resultFileName = resultFileEdit->text().isEmpty() ? "result.txt" : resultFileEdit->text();
+    }
+    
     QString resultsFile = outputDir + "/" + resultFileName;
     
-    // Читаем результаты расчета из fem-module/2D/build/result.txt
-    QString femResultFile = projectRoot + "/fem-module/2D/build/result.txt";
+    // Определяем, откуда читать результаты в зависимости от типа анализа
+    QString femResultFile;
+    
+    if (analysisType.contains("Модальный")) {
+        // Для модального анализа читаем из fem-module/build/Modal_result.txt
+        femResultFile = projectRoot + "/fem-module/build/Modal_result.txt";
+    } else {
+        // Для статического анализа читаем из fem-module/2D/build/result.txt
+        femResultFile = projectRoot + "/fem-module/2D/build/result.txt";
+    }
+    
     QString resultContent;
     
     if (QFileInfo::exists(femResultFile)) {
@@ -602,13 +628,43 @@ void MainWindow::saveResultsToDesktop() {
             QTextStream in(&femFile);
             resultContent = in.readAll();
             femFile.close();
+            outputText->append(QString("✓ Файл результатов найден: %1\n").arg(femResultFile));
+        } else {
+            outputText->append(QString("✗ Не удалось открыть файл результатов: %1\n").arg(femResultFile));
+        }
+    } else {
+        outputText->append(QString("✗ Файл результатов не найден: %1\n").arg(femResultFile));
+        // Проверяем альтернативные пути
+        QString altPath1 = projectRoot + "/fem-module/build/Modal_result.txt";
+        QString altPath2 = projectRoot + "/build/Modal_result.txt";
+        if (QFileInfo::exists(altPath1)) {
+            outputText->append(QString("Найден альтернативный файл: %1\n").arg(altPath1));
+            femResultFile = altPath1;
+            QFile femFile(femResultFile);
+            if (femFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream in(&femFile);
+                resultContent = in.readAll();
+                femFile.close();
+            }
+        } else if (QFileInfo::exists(altPath2)) {
+            outputText->append(QString("Найден альтернативный файл: %1\n").arg(altPath2));
+            femResultFile = altPath2;
+            QFile femFile(femResultFile);
+            if (femFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream in(&femFile);
+                resultContent = in.readAll();
+                femFile.close();
+            }
         }
     }
     
     // Если результатов нет, сообщаем об ошибке
     if (resultContent.isEmpty()) {
         outputText->append("\n=== Ошибка: Результаты расчета не найдены ===\n");
-        QMessageBox::warning(this, "Ошибка", "Файл результатов не найден:\n" + femResultFile);
+        outputText->append(QString("Проверьте, что модальный анализ завершился успешно.\n"));
+        outputText->append(QString("Ожидаемый файл: %1\n").arg(femResultFile));
+        QMessageBox::warning(this, "Ошибка", 
+            QString("Файл результатов не найден:\n%1\n\nПроверьте, что модальный анализ завершился успешно.").arg(femResultFile));
         return;
     }
     
