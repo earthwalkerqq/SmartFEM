@@ -14,10 +14,10 @@ EQ            = =
 
 CC            = /Library/Developer/CommandLineTools/usr/bin/clang
 CXX           = /Library/Developer/CommandLineTools/usr/bin/clang++
-DEFINES       = -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB
+DEFINES       = -DQT_NO_DEBUG -DQT_OPENGLWIDGETS_LIB -DQT_WIDGETS_LIB -DQT_OPENGL_LIB -DQT_GUI_LIB -DQT_CORE_LIB
 CFLAGS        = -pipe -O2 $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wall -Wextra $(DEFINES)
 CXXFLAGS      = -pipe -stdlib=libc++ -O2 -std=gnu++1z $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wall -Wextra $(DEFINES)
-INCPATH       = -I../preprocess/gui -I. -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I../../build/gui_moc -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/opt/homebrew/share/qt/mkspecs/macx-clang -F/opt/homebrew/lib
+INCPATH       = -I../preprocess/gui -I. -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I../../build/gui_moc -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/opt/homebrew/share/qt/mkspecs/macx-clang -F/opt/homebrew/lib
 QMAKE         = /opt/homebrew/opt/qt/bin/qmake
 DEL_FILE      = rm -f
 CHK_DIR_EXISTS= test -d
@@ -40,7 +40,7 @@ DISTNAME      = SmartFEM_GUI1.0.0
 DISTDIR = /Users/matvej/Desktop/build/gui_obj/SmartFEM_GUI1.0.0
 LINK          = /Library/Developer/CommandLineTools/usr/bin/clang++
 LFLAGS        = -stdlib=libc++ -headerpad_max_install_names $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wl,-rpath,@executable_path/../Frameworks -Wl,-rpath,/opt/homebrew/lib
-LIBS          = $(SUBLIBS) -F/opt/homebrew/lib -framework QtWidgets -framework QtGui -framework AppKit -framework ImageIO -framework Metal -framework QtCore -framework IOKit -framework DiskArbitration -framework UniformTypeIdentifiers -framework OpenGL   
+LIBS          = $(SUBLIBS) -F/opt/homebrew/lib -framework QtOpenGLWidgets -framework QtWidgets -framework QtOpenGL -framework QtGui -framework AppKit -framework ImageIO -framework Metal -framework QtCore -framework IOKit -framework DiskArbitration -framework UniformTypeIdentifiers -framework OpenGL   
 AR            = /Library/Developer/CommandLineTools/usr/bin/ar cq
 RANLIB        = /Library/Developer/CommandLineTools/usr/bin/ranlib -s
 SED           = sed
@@ -53,10 +53,18 @@ OBJECTS_DIR   = ../../build/gui_obj/
 ####### Files
 
 SOURCES       = ../preprocess/gui/main.cpp \
-		../preprocess/gui/mainwindow.cpp ../../build/gui_moc/moc_mainwindow.cpp
+		../preprocess/gui/mainwindow.cpp \
+		../preprocess/gui/nodeselectionwindow.cpp \
+		../preprocess/gui/meshviewer.cpp ../../build/gui_moc/moc_mainwindow.cpp \
+		../../build/gui_moc/moc_nodeselectionwindow.cpp \
+		../../build/gui_moc/moc_meshviewer.cpp
 OBJECTS       = ../../build/gui_obj/main.o \
 		../../build/gui_obj/mainwindow.o \
-		../../build/gui_obj/moc_mainwindow.o
+		../../build/gui_obj/nodeselectionwindow.o \
+		../../build/gui_obj/meshviewer.o \
+		../../build/gui_obj/moc_mainwindow.o \
+		../../build/gui_obj/moc_nodeselectionwindow.o \
+		../../build/gui_obj/moc_meshviewer.o
 DIST          = /opt/homebrew/share/qt/mkspecs/features/spec_pre.prf \
 		/opt/homebrew/share/qt/mkspecs/features/device_config.prf \
 		/opt/homebrew/share/qt/mkspecs/common/unix.conf \
@@ -427,8 +435,12 @@ DIST          = /opt/homebrew/share/qt/mkspecs/features/spec_pre.prf \
 		/opt/homebrew/share/qt/mkspecs/features/exceptions.prf \
 		/opt/homebrew/share/qt/mkspecs/features/yacc.prf \
 		/opt/homebrew/share/qt/mkspecs/features/lex.prf \
-		../preprocess/preprocess/gui/SmartFEM_GUI.pro ../preprocess/gui/mainwindow.h ../preprocess/gui/main.cpp \
-		../preprocess/gui/mainwindow.cpp
+		../preprocess/preprocess/gui/SmartFEM_GUI.pro ../preprocess/gui/mainwindow.h \
+		../preprocess/gui/nodeselectionwindow.h \
+		../preprocess/gui/meshviewer.h ../preprocess/gui/main.cpp \
+		../preprocess/gui/mainwindow.cpp \
+		../preprocess/gui/nodeselectionwindow.cpp \
+		../preprocess/gui/meshviewer.cpp
 QMAKE_TARGET  = SmartFEM_GUI
 DESTDIR       = 
 TARGET        = SmartFEM_GUI.app/Contents/MacOS/SmartFEM_GUI
@@ -824,7 +836,9 @@ Makefile: ../preprocess/gui/SmartFEM_GUI.pro /opt/homebrew/share/qt/mkspecs/macx
 		/opt/homebrew/share/qt/mkspecs/features/yacc.prf \
 		/opt/homebrew/share/qt/mkspecs/features/lex.prf \
 		../preprocess/gui/SmartFEM_GUI.pro \
+		/opt/homebrew/lib/QtOpenGLWidgets.framework/Resources/QtOpenGLWidgets.prl \
 		/opt/homebrew/lib/QtWidgets.framework/Resources/QtWidgets.prl \
+		/opt/homebrew/lib/QtOpenGL.framework/Resources/QtOpenGL.prl \
 		/opt/homebrew/lib/QtGui.framework/Resources/QtGui.prl \
 		/opt/homebrew/lib/QtCore.framework/Resources/QtCore.prl
 	$(QMAKE) -o Makefile ../preprocess/gui/SmartFEM_GUI.pro
@@ -1199,7 +1213,9 @@ Makefile: ../preprocess/gui/SmartFEM_GUI.pro /opt/homebrew/share/qt/mkspecs/macx
 /opt/homebrew/share/qt/mkspecs/features/yacc.prf:
 /opt/homebrew/share/qt/mkspecs/features/lex.prf:
 ../preprocess/gui/SmartFEM_GUI.pro:
+/opt/homebrew/lib/QtOpenGLWidgets.framework/Resources/QtOpenGLWidgets.prl:
 /opt/homebrew/lib/QtWidgets.framework/Resources/QtWidgets.prl:
+/opt/homebrew/lib/QtOpenGL.framework/Resources/QtOpenGL.prl:
 /opt/homebrew/lib/QtGui.framework/Resources/QtGui.prl:
 /opt/homebrew/lib/QtCore.framework/Resources/QtCore.prl:
 qmake: FORCE
@@ -1227,8 +1243,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/homebrew/share/qt/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ../preprocess/gui/mainwindow.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../preprocess/gui/main.cpp ../preprocess/gui/mainwindow.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../preprocess/gui/mainwindow.h ../preprocess/gui/nodeselectionwindow.h ../preprocess/gui/meshviewer.h $(DISTDIR)/
+	$(COPY_FILE) --parents ../preprocess/gui/main.cpp ../preprocess/gui/mainwindow.cpp ../preprocess/gui/nodeselectionwindow.cpp ../preprocess/gui/meshviewer.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -1263,9 +1279,9 @@ compiler_moc_predefs_clean:
 ../../build/gui_moc/moc_predefs.h: /opt/homebrew/share/qt/mkspecs/features/data/dummy.cpp
 	/Library/Developer/CommandLineTools/usr/bin/clang++ -pipe -stdlib=libc++ -O2 -std=gnu++1z $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wall -Wextra -dM -E -o ../../build/gui_moc/moc_predefs.h /opt/homebrew/share/qt/mkspecs/features/data/dummy.cpp
 
-compiler_moc_header_make_all: ../../build/gui_moc/moc_mainwindow.cpp
+compiler_moc_header_make_all: ../../build/gui_moc/moc_mainwindow.cpp ../../build/gui_moc/moc_nodeselectionwindow.cpp ../../build/gui_moc/moc_meshviewer.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) ../../build/gui_moc/moc_mainwindow.cpp
+	-$(DEL_FILE) ../../build/gui_moc/moc_mainwindow.cpp ../../build/gui_moc/moc_nodeselectionwindow.cpp ../../build/gui_moc/moc_meshviewer.cpp
 ../../build/gui_moc/moc_mainwindow.cpp: ../preprocess/gui/mainwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
@@ -1292,9 +1308,68 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QTabWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QCheckBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcheckbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
 		../../build/gui_moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I. -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib ../preprocess/gui/mainwindow.h -o ../../build/gui_moc/moc_mainwindow.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I. -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib ../preprocess/gui/mainwindow.h -o ../../build/gui_moc/moc_mainwindow.cpp
+
+../../build/gui_moc/moc_nodeselectionwindow.cpp: ../preprocess/gui/nodeselectionwindow.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qtextedit.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QListWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlistwidget.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QLineEdit \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlineedit.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QComboBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcombobox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QGroupBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qgroupbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QFormLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qformlayout.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QProcess \
+		/opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
+		../../build/gui_moc/moc_predefs.h \
+		/opt/homebrew/share/qt/libexec/moc
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I. -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib ../preprocess/gui/nodeselectionwindow.h -o ../../build/gui_moc/moc_nodeselectionwindow.cpp
+
+../../build/gui_moc/moc_meshviewer.cpp: ../preprocess/gui/meshviewer.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPointF \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpoint.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
+		../../build/gui_moc/moc_predefs.h \
+		/opt/homebrew/share/qt/libexec/moc
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I. -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib ../preprocess/gui/meshviewer.h -o ../../build/gui_moc/moc_meshviewer.cpp
 
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
@@ -1340,6 +1415,15 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QTabWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QCheckBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcheckbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/main.o ../preprocess/gui/main.cpp
@@ -1370,6 +1454,22 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QTabWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QCheckBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcheckbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		../preprocess/gui/nodeselectionwindow.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QListWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlistwidget.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QDir \
@@ -1383,11 +1483,95 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtCore.framework/Headers/QTextStream \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtextstream.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QFile \
-		/opt/homebrew/lib/QtCore.framework/Headers/qfile.h
+		/opt/homebrew/lib/QtCore.framework/Headers/qfile.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/mainwindow.o ../preprocess/gui/mainwindow.cpp
+
+../../build/gui_obj/nodeselectionwindow.o: ../preprocess/gui/nodeselectionwindow.cpp ../preprocess/gui/nodeselectionwindow.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qtextedit.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QListWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlistwidget.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QLineEdit \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlineedit.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QComboBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcombobox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QGroupBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qgroupbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QFormLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qformlayout.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QProcess \
+		/opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
+		../preprocess/gui/meshviewer.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPointF \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpoint.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QFile \
+		/opt/homebrew/lib/QtCore.framework/Headers/qfile.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QTextStream \
+		/opt/homebrew/lib/QtCore.framework/Headers/qtextstream.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QFileDialog \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QFileInfo \
+		/opt/homebrew/lib/QtCore.framework/Headers/qfileinfo.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDir \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QInputDialog \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qinputdialog.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/nodeselectionwindow.o ../preprocess/gui/nodeselectionwindow.cpp
+
+../../build/gui_obj/meshviewer.o: ../preprocess/gui/meshviewer.cpp ../preprocess/gui/meshviewer.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPointF \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpoint.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QFile \
+		/opt/homebrew/lib/QtCore.framework/Headers/qfile.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QTextStream \
+		/opt/homebrew/lib/QtCore.framework/Headers/qtextstream.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDebug \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdebug.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/meshviewer.o ../preprocess/gui/meshviewer.cpp
 
 ../../build/gui_obj/moc_mainwindow.o: ../../build/gui_moc/moc_mainwindow.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/moc_mainwindow.o ../../build/gui_moc/moc_mainwindow.cpp
+
+../../build/gui_obj/moc_nodeselectionwindow.o: ../../build/gui_moc/moc_nodeselectionwindow.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/moc_nodeselectionwindow.o ../../build/gui_moc/moc_nodeselectionwindow.cpp
+
+../../build/gui_obj/moc_meshviewer.o: ../../build/gui_moc/moc_meshviewer.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/moc_meshviewer.o ../../build/gui_moc/moc_meshviewer.cpp
 
 ####### Install
 

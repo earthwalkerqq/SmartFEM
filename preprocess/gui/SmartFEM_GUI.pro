@@ -1,4 +1,4 @@
-QT += core widgets
+QT += core widgets opengl openglwidgets
 
 CONFIG += c++17
 
@@ -7,10 +7,14 @@ TEMPLATE = app
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    nodeselectionwindow.cpp \
+    meshviewer.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    nodeselectionwindow.h \
+    meshviewer.h
 
 # Используем относительные пути (от директории сборки)
 DESTDIR = ../../build

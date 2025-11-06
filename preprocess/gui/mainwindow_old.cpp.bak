@@ -1,5 +1,4 @@
 #include "mainwindow.h"
-#include "nodeselectionwindow.h"
 #include <QApplication>
 #include <QDir>
 #include <QStandardPaths>
@@ -7,18 +6,30 @@
 #include <QDateTime>
 #include <QTextStream>
 #include <QFile>
-#include <QTabWidget>
-#include <QSplitter>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), process(nullptr), nodeSelectionWindow(nullptr) {
+    : QMainWindow(parent), process(nullptr) {
     // Определяем корень проекта
+    // Если запускаем из build/SmartFEM_GUI.app, то путь к проекту - на 2 уровня выше
+    // Если запускаем из preprocess/gui, то тоже на 2 уровня выше
     QString appPath = QApplication::applicationFilePath();
     QFileInfo appInfo(appPath);
     QDir appDir = appInfo.absoluteDir();
     
+    // Для .app bundle: appDir = SmartFEM_GUI.app/Contents/MacOS
+    // Для обычного executable: appDir = build или preprocess/gui
+    if (appPath.contains(".app")) {
+        // Это .app bundle, идем на 3 уровня вверх
+        appDir.cdUp(); // Contents
+        appDir.cdUp(); // SmartFEM_GUI.app
+        appDir.cdUp(); // build
+    }
+    
+    // Ищем корень проекта (где есть папка HyperMesh)
+    // Важно: не выходим за пределы Desktop, чтобы не создать build папку не там
     QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
     while (!appDir.isRoot() && !QDir(appDir.absolutePath() + "/HyperMesh").exists()) {
+        // Останавливаемся, если дошли до Desktop или выше
         if (appDir.absolutePath() == desktopPath || appDir.absolutePath().count("/") <= 2) {
             break;
         }
@@ -26,10 +37,13 @@ MainWindow::MainWindow(QWidget *parent)
     }
     
     projectRoot = appDir.absolutePath();
+    
+    // Если не нашли, используем абсолютный путь по умолчанию
     if (projectRoot.isEmpty() || !QDir(projectRoot + "/HyperMesh").exists()) {
         projectRoot = "/Users/matvej/Desktop/SmartFEM";
     }
     
+    // Финальная проверка: убеждаемся, что projectRoot не на Desktop (кроме самого SmartFEM)
     if (projectRoot == desktopPath || projectRoot.contains(desktopPath + "/build")) {
         projectRoot = "/Users/matvej/Desktop/SmartFEM";
     }
@@ -39,20 +53,19 @@ MainWindow::MainWindow(QWidget *parent)
     // Установить значения по умолчанию
     stepFileEdit->setText(projectRoot + "/materials/data-sample/52.stp");
     outputDirEdit->setText(projectRoot + "/build");
-    resultFileEdit->setText("result.txt");
     
-    eEdit->setValue(2.1e5);
-    nuEdit->setValue(0.3);
-    rhoEdit->setValue(7850.0);
-    hEdit->setValue(1.0);
-    
-    numElementsEdit->setValue(500);
-    clminEdit->setValue(0.8);
-    clmaxEdit->setValue(6.0);
-    
-    numModesEdit->setValue(5);
-    
+    // Добавить информацию о project root в вывод (после создания outputText)
     outputText->append(QString("Project root: %1\n").arg(projectRoot));
+    
+    // Установить значения по умолчанию
+    numElementsEdit->setText("500");
+    clminEdit->setText("0.8");
+    clmaxEdit->setText("6.0");
+    eEdit->setText("2.1e5");
+    nuEdit->setText("0.3");
+    rhoEdit->setText("7850");
+    hEdit->setText("1.0");
+    numModesEdit->setText("5");
 }
 
 MainWindow::~MainWindow() {
@@ -60,87 +73,27 @@ MainWindow::~MainWindow() {
         process->kill();
         process->deleteLater();
     }
-    if (nodeSelectionWindow) {
-        nodeSelectionWindow->deleteLater();
-    }
 }
 
 void MainWindow::setupUI() {
     setWindowTitle("SmartFEM - Параметры расчета");
-    setMinimumSize(1000, 700);
+    setMinimumSize(800, 600);
     
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
     
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
     
-    // Создаем вкладки для 5 разделов
-    QTabWidget *tabWidget = new QTabWidget(this);
-    
-    // Раздел 1: Выбор файла и места сохранения
-    QWidget *fileTab = new QWidget();
-    QVBoxLayout *fileLayout = new QVBoxLayout(fileTab);
-    setupFileGroup();
-    fileLayout->addWidget(createFileGroup());
-    tabWidget->addTab(fileTab, "1. Файлы");
-    
-    // Раздел 2: Материал
-    QWidget *materialTab = new QWidget();
-    QVBoxLayout *materialLayout = new QVBoxLayout(materialTab);
-    setupMaterialGroup();
-    materialLayout->addWidget(createMaterialGroup());
-    tabWidget->addTab(materialTab, "2. Материал");
-    
-    // Раздел 3: Параметры сетки
-    QWidget *meshTab = new QWidget();
-    QVBoxLayout *meshLayout = new QVBoxLayout(meshTab);
-    setupMeshGroup();
-    meshLayout->addWidget(createMeshGroup());
-    tabWidget->addTab(meshTab, "3. Сетка");
-    
-    // Раздел 4: Граничные условия и нагрузки
-    QWidget *boundaryTab = new QWidget();
-    QVBoxLayout *boundaryLayout = new QVBoxLayout(boundaryTab);
-    setupBoundaryGroup();
-    boundaryLayout->addWidget(createBoundaryGroup());
-    tabWidget->addTab(boundaryTab, "4. Граничные условия");
-    
-    // Раздел 5: Выбор расчета
-    QWidget *analysisTab = new QWidget();
-    QVBoxLayout *analysisLayout = new QVBoxLayout(analysisTab);
-    setupAnalysisGroup();
-    analysisLayout->addWidget(createAnalysisGroup());
-    tabWidget->addTab(analysisTab, "5. Расчет");
-    
-    mainLayout->addWidget(tabWidget);
-    
-    // Вывод
-    QGroupBox *outputGroup = new QGroupBox("Вывод", this);
-    QVBoxLayout *outputLayout = new QVBoxLayout(outputGroup);
-    outputText = new QTextEdit(this);
-    outputText->setReadOnly(true);
-    outputText->setFont(QFont("Courier", 10));
-    outputText->setMaximumHeight(200);
-    outputLayout->addWidget(outputText);
-    mainLayout->addWidget(outputGroup);
-    
-    // Кнопка запуска
-    runBtn = new QPushButton("Запустить расчет", this);
-    runBtn->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-size: 16px; padding: 15px; font-weight: bold; }");
-    connect(runBtn, &QPushButton::clicked, this, &MainWindow::runAnalysis);
-    mainLayout->addWidget(runBtn);
-}
-
-QGroupBox* MainWindow::createFileGroup() {
-    QGroupBox *group = new QGroupBox("Выбор файла и места сохранения", this);
-    QFormLayout *layout = new QFormLayout(group);
+    // Input file group
+    QGroupBox *inputGroup = new QGroupBox("Входной файл", this);
+    QFormLayout *inputLayout = new QFormLayout(inputGroup);
     
     stepFileEdit = new QLineEdit(this);
     browseStepBtn = new QPushButton("Обзор...", this);
     QHBoxLayout *stepLayout = new QHBoxLayout();
     stepLayout->addWidget(stepFileEdit);
     stepLayout->addWidget(browseStepBtn);
-    layout->addRow("STEP файл:", stepLayout);
+    inputLayout->addRow("STEP файл:", stepLayout);
     connect(browseStepBtn, &QPushButton::clicked, this, &MainWindow::browseStepFile);
     
     outputDirEdit = new QLineEdit(this);
@@ -148,147 +101,102 @@ QGroupBox* MainWindow::createFileGroup() {
     QHBoxLayout *outputDirLayout = new QHBoxLayout();
     outputDirLayout->addWidget(outputDirEdit);
     outputDirLayout->addWidget(browseOutputBtn);
-    layout->addRow("Выходная директория:", outputDirLayout);
+    inputLayout->addRow("Выходная директория:", outputDirLayout);
     connect(browseOutputBtn, &QPushButton::clicked, this, &MainWindow::browseOutputDir);
     
-    resultFileEdit = new QLineEdit(this);
-    resultFileEdit->setPlaceholderText("result.txt");
-    layout->addRow("Имя файла результатов:", resultFileEdit);
+    mainLayout->addWidget(inputGroup);
     
-    return group;
-}
-
-QGroupBox* MainWindow::createMaterialGroup() {
-    QGroupBox *group = new QGroupBox("Параметры материала", this);
-    QFormLayout *layout = new QFormLayout(group);
+    // Mesh parameters
+    QGroupBox *meshGroup = new QGroupBox("Параметры сетки", this);
+    QFormLayout *meshLayout = new QFormLayout(meshGroup);
     
-    eEdit = new QDoubleSpinBox(this);
-    eEdit->setRange(1.0, 1.0e12);
-    eEdit->setValue(2.1e5);
-    eEdit->setSuffix(" МПа");
-    eEdit->setDecimals(0);
-    layout->addRow("Модуль упругости E:", eEdit);
-    
-    nuEdit = new QDoubleSpinBox(this);
-    nuEdit->setRange(0.0, 0.5);
-    nuEdit->setValue(0.3);
-    nuEdit->setDecimals(3);
-    nuEdit->setSingleStep(0.01);
-    layout->addRow("Коэффициент Пуассона ν:", nuEdit);
-    
-    rhoEdit = new QDoubleSpinBox(this);
-    rhoEdit->setRange(1.0, 50000.0);
-    rhoEdit->setValue(7850.0);
-    rhoEdit->setSuffix(" кг/м³");
-    rhoEdit->setDecimals(1);
-    layout->addRow("Плотность ρ:", rhoEdit);
-    
-    hEdit = new QDoubleSpinBox(this);
-    hEdit->setRange(0.001, 100.0);
-    hEdit->setValue(1.0);
-    hEdit->setSuffix(" м");
-    hEdit->setDecimals(3);
-    layout->addRow("Толщина h:", hEdit);
-    
-    return group;
-}
-
-QGroupBox* MainWindow::createMeshGroup() {
-    QGroupBox *group = new QGroupBox("Параметры сетки", this);
-    QFormLayout *layout = new QFormLayout(group);
-    
-    numElementsEdit = new QSpinBox(this);
-    numElementsEdit->setRange(10, 100000);
-    numElementsEdit->setValue(500);
+    // Количество элементов
+    numElementsEdit = new QLineEdit(this);
+    numElementsEdit->setPlaceholderText("500");
+    numElementsEdit->setToolTip("Желаемое количество элементов в сетке");
     calcMeshParamsBtn = new QPushButton("Рассчитать параметры", this);
     QHBoxLayout *numElementsLayout = new QHBoxLayout();
     numElementsLayout->addWidget(numElementsEdit);
     numElementsLayout->addWidget(calcMeshParamsBtn);
-    layout->addRow("Желаемое количество элементов:", numElementsLayout);
+    meshLayout->addRow("Желаемое количество элементов:", numElementsLayout);
     connect(calcMeshParamsBtn, &QPushButton::clicked, this, &MainWindow::calculateMeshParams);
     
-    clminEdit = new QDoubleSpinBox(this);
-    clminEdit->setRange(0.001, 100.0);
-    clminEdit->setValue(0.8);
-    clminEdit->setDecimals(3);
-    layout->addRow("Минимальный размер элемента (clmin):", clminEdit);
+    clminEdit = new QLineEdit(this);
+    clminEdit->setPlaceholderText("0.1");
+    clminEdit->setToolTip("Минимальный размер элемента (автоматически рассчитывается)");
+    meshLayout->addRow("Минимальный размер элемента (clmin):", clminEdit);
+    clmaxEdit = new QLineEdit(this);
+    clmaxEdit->setPlaceholderText("1.0");
+    clmaxEdit->setToolTip("Максимальный размер элемента (автоматически рассчитывается)");
+    meshLayout->addRow("Максимальный размер элемента (clmax):", clmaxEdit);
+    showMeshGuiBtn = new QPushButton("Показать сетку в Gmsh", this);
+    meshLayout->addRow(showMeshGuiBtn);
+    mainLayout->addWidget(meshGroup);
     
-    clmaxEdit = new QDoubleSpinBox(this);
-    clmaxEdit->setRange(0.01, 100.0);
-    clmaxEdit->setValue(6.0);
-    clmaxEdit->setDecimals(3);
-    layout->addRow("Максимальный размер элемента (clmax):", clmaxEdit);
+    // Material parameters
+    QGroupBox *materialGroup = new QGroupBox("Параметры материала", this);
+    QFormLayout *materialLayout = new QFormLayout(materialGroup);
+    eEdit = new QLineEdit(this);
+    eEdit->setPlaceholderText("2.1e5 (МПа)");
+    materialLayout->addRow("Модуль упругости E (МПа):", eEdit);
+    nuEdit = new QLineEdit(this);
+    nuEdit->setPlaceholderText("0.3");
+    materialLayout->addRow("Коэффициент Пуассона ν:", nuEdit);
+    rhoEdit = new QLineEdit(this);
+    rhoEdit->setPlaceholderText("7850 (кг/м³)");
+    materialLayout->addRow("Плотность ρ (кг/м³):", rhoEdit);
+    hEdit = new QLineEdit(this);
+    hEdit->setPlaceholderText("1.0 (м)");
+    materialLayout->addRow("Толщина h (м):", hEdit);
+    mainLayout->addWidget(materialGroup);
     
-    return group;
-}
-
-QGroupBox* MainWindow::createBoundaryGroup() {
-    QGroupBox *group = new QGroupBox("Граничные условия и нагрузки", this);
-    QVBoxLayout *layout = new QVBoxLayout(group);
-    
-    QLabel *infoLabel = new QLabel(
-        "Нажмите кнопку ниже, чтобы открыть окно визуализации модели.\n"
-        "В этом окне вы сможете выбрать узлы для задания:\n"
-        "- Закреплений (по U или V)\n"
-        "- Сосредоточенных сил\n"
-        "- Распределенных нагрузок", this);
-    infoLabel->setWordWrap(true);
-    layout->addWidget(infoLabel);
-    
-    openNodeSelectionBtn = new QPushButton("Открыть окно выбора узлов", this);
-    openNodeSelectionBtn->setStyleSheet("QPushButton { background-color: #2196F3; color: white; padding: 10px; font-size: 14px; }");
-    connect(openNodeSelectionBtn, &QPushButton::clicked, this, &MainWindow::openNodeSelectionWindow);
-    layout->addWidget(openNodeSelectionBtn);
-    
-    boundaryConditionsLabel = new QLabel("Закрепления: не заданы", this);
-    loadsLabel = new QLabel("Нагрузки: не заданы", this);
-    layout->addWidget(boundaryConditionsLabel);
-    layout->addWidget(loadsLabel);
-    
-    return group;
-}
-
-QGroupBox* MainWindow::createAnalysisGroup() {
-    QGroupBox *group = new QGroupBox("Выбор расчета", this);
-    QFormLayout *layout = new QFormLayout(group);
-    
+    // Analysis parameters
+    QGroupBox *analysisGroup = new QGroupBox("Тип анализа", this);
+    QFormLayout *analysisLayout = new QFormLayout(analysisGroup);
     analysisTypeCombo = new QComboBox(this);
     analysisTypeCombo->addItem("Статический FEM анализ");
     analysisTypeCombo->addItem("Модальный анализ (колебания)");
-    layout->addRow("Тип анализа:", analysisTypeCombo);
-    
-    numModesEdit = new QSpinBox(this);
-    numModesEdit->setRange(1, 100);
-    numModesEdit->setValue(5);
+    analysisLayout->addRow("Тип анализа:", analysisTypeCombo);
+    numModesEdit = new QLineEdit(this);
+    numModesEdit->setPlaceholderText("5");
     numModesEdit->setEnabled(false);
-    layout->addRow("Количество мод:", numModesEdit);
-    
+    analysisLayout->addRow("Количество мод:", numModesEdit);
     connect(analysisTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             [this](int index) {
                 numModesEdit->setEnabled(index == 1);
             });
+    mainLayout->addWidget(analysisGroup);
     
-    return group;
-}
-
-void MainWindow::setupFileGroup() {
-    // Уже создано в createFileGroup()
-}
-
-void MainWindow::setupMaterialGroup() {
-    // Уже создано в createMaterialGroup()
+    // Output
+    QGroupBox *outputGroup = new QGroupBox("Вывод", this);
+    QVBoxLayout *outputLayout = new QVBoxLayout(outputGroup);
+    outputText = new QTextEdit(this);
+    outputText->setReadOnly(true);
+    outputText->setFont(QFont("Courier", 10));
+    outputLayout->addWidget(outputText);
+    mainLayout->addWidget(outputGroup);
+    
+    // Run button
+    runBtn = new QPushButton("Запустить расчет", this);
+    runBtn->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-size: 14px; padding: 10px; }");
+    connect(runBtn, &QPushButton::clicked, this, &MainWindow::runAnalysis);
+    mainLayout->addWidget(runBtn);
 }
 
 void MainWindow::setupMeshGroup() {
-    // Уже создано в createMeshGroup()
+    // Пустая функция - все создается в setupUI()
 }
 
-void MainWindow::setupBoundaryGroup() {
-    // Уже создано в createBoundaryGroup()
+void MainWindow::setupMaterialGroup() {
+    // Пустая функция - все создается в setupUI()
 }
 
 void MainWindow::setupAnalysisGroup() {
-    // Уже создано в createAnalysisGroup()
+    // Пустая функция - все создается в setupUI()
+}
+
+void MainWindow::setupOutputGroup() {
+    // Пустая функция - все создается в setupUI()
 }
 
 void MainWindow::browseStepFile() {
@@ -311,100 +219,52 @@ void MainWindow::browseOutputDir() {
 }
 
 void MainWindow::calculateMeshParams() {
-    int desiredElements = numElementsEdit->value();
+    bool ok;
+    int desiredElements = numElementsEdit->text().toInt(&ok);
     
-    double estimatedArea = 470.0;
-    double factor = 82.8;
+    if (!ok || desiredElements <= 0) {
+        QMessageBox::warning(this, "Ошибка", "Введите корректное количество элементов (положительное число)");
+        return;
+    }
     
+    // Улучшенная эмпирическая формула на основе реальных данных
+    // Для данной геометрии (примерно 23.5 x 20.0 = 470 единиц площади):
+    // clmax=1.0 -> ~29622 элементов
+    // clmax=0.97 -> ~32408 элементов
+    // 
+    // Эмпирическая зависимость: elements ≈ area / (clmax^2) * factor
+    // где factor ≈ 63 (получено из реальных данных)
+    
+    double estimatedArea = 470.0; // Примерная площадь модели
+    double factor = 82.8; // Эмпирический коэффициент (скорректирован на основе реальных данных)
+    
+    // Расчет clmax на основе желаемого количества элементов
+    // elements = area / (clmax^2) * factor
+    // clmax^2 = area * factor / elements
     double clmax = sqrt(estimatedArea * factor / desiredElements);
+    
+    // clmin обычно составляет 0.1-0.2 от clmax для хорошего качества сетки
+    // Но для мелких сеток используем меньший коэффициент
     double clminRatio = (desiredElements < 1000) ? 0.2 : 0.15;
     double clmin = clmax * clminRatio;
     
-    if (clmin < 0.05) clmin = 0.05;
-    if (clmax < 0.1) clmax = 0.1;
-    if (clmax > 50.0) clmax = 50.0;
+    // Ограничения для разумных значений
+    if (clmin < 0.05) clmin = 0.05;  // Минимальный размер элемента
+    if (clmax < 0.1) clmax = 0.1;    // Минимальный максимальный размер
+    if (clmax > 50.0) clmax = 50.0;  // Максимальный размер
     
-    clminEdit->setValue(clmin);
-    clmaxEdit->setValue(clmax);
+    // Округляем до 3 знаков после запятой для точности
+    clminEdit->setText(QString::number(clmin, 'f', 3));
+    clmaxEdit->setText(QString::number(clmax, 'f', 3));
     
+    // Оценка фактического количества элементов (для информации)
     double estimatedElements = estimatedArea * factor / (clmax * clmax);
+    
     outputText->append(QString("Рассчитаны параметры сетки:\n")
-                      .append(QString("  Желаемое: %1, Ожидаемое: ~%2\n")
-                      .arg(desiredElements).arg((int)estimatedElements))
+                      .append(QString("  Желаемое количество элементов: %1\n").arg(desiredElements))
+                      .append(QString("  Ожидаемое количество элементов: ~%1\n").arg((int)estimatedElements))
                       .append(QString("  clmin=%.3f, clmax=%.3f\n").arg(clmin).arg(clmax)));
 }
-
-void MainWindow::openNodeSelectionWindow() {
-    // Сначала нужно сгенерировать сетку, если её еще нет
-    QString stepFile = stepFileEdit->text();
-    if (stepFile.isEmpty() || !QFileInfo::exists(stepFile)) {
-        QMessageBox::warning(this, "Ошибка", "Сначала выберите STEP файл!");
-        return;
-    }
-    
-    // Генерируем сетку с текущими параметрами
-    QString clmin = QString::number(clminEdit->value(), 'g', 6);
-    QString clmax = QString::number(clmaxEdit->value(), 'g', 6);
-    
-    outputText->append("Генерация сетки для визуализации...\n");
-    
-    // Запускаем генерацию сетки синхронно
-    QProcess meshProcess;
-    QString meshScript = projectRoot + "/HyperMesh/generate_mesh.sh";
-    meshProcess.setWorkingDirectory(projectRoot + "/HyperMesh");
-    meshProcess.start("/bin/bash", QStringList() << meshScript << stepFile << clmin << clmax);
-    
-    if (!meshProcess.waitForFinished(30000)) {
-        QMessageBox::critical(this, "Ошибка", "Не удалось сгенерировать сетку!");
-        return;
-    }
-    
-    if (meshProcess.exitCode() != 0) {
-        QMessageBox::critical(this, "Ошибка", "Ошибка генерации сетки!");
-        return;
-    }
-    
-    QString mshFile = projectRoot + "/build/HyperMesh.msh";
-    QString nodeFile = projectRoot + "/build/node.txt";
-    
-    if (!QFileInfo::exists(nodeFile)) {
-        QMessageBox::critical(this, "Ошибка", "Файл сетки не найден!");
-        return;
-    }
-    
-    // Открываем окно выбора узлов
-    if (nodeSelectionWindow) {
-        nodeSelectionWindow->deleteLater();
-    }
-    
-    nodeSelectionWindow = new NodeSelectionWindow(mshFile, nodeFile, this);
-    connect(nodeSelectionWindow, SIGNAL(boundaryConditionsChanged()),
-            this, SLOT(onBoundaryConditionsChanged()));
-    
-    int result = static_cast<QDialog*>(nodeSelectionWindow)->exec();
-    if (result == QDialog::Accepted) {
-        fixedNodesU = nodeSelectionWindow->getFixedNodesU();
-        fixedNodesV = nodeSelectionWindow->getFixedNodesV();
-        loadedNodes = nodeSelectionWindow->getLoadedNodes();
-        nodeLoads = nodeSelectionWindow->getNodeLoads();
-        
-        onBoundaryConditionsChanged();
-    }
-}
-
-void MainWindow::onBoundaryConditionsChanged() {
-    QString bcText = QString("Закрепления: U_fixed=%1, V_fixed=%2")
-                     .arg(fixedNodesU.size()).arg(fixedNodesV.size());
-    boundaryConditionsLabel->setText(bcText);
-    
-    QString loadsText = QString("Нагрузки: %1 узлов")
-                       .arg(loadedNodes.size());
-    loadsLabel->setText(loadsText);
-}
-
-// Продолжение в следующем файле из-за размера...
-
-// Продолжение mainwindow.cpp - добавление недостающих методов
 
 void MainWindow::runAnalysis() {
     if (process && process->state() == QProcess::Running) {
@@ -442,12 +302,16 @@ void MainWindow::runAnalysis() {
     
     QString analysisType = analysisTypeCombo->currentText();
     QString stepFile = stepFileEdit->text();
-    double clminVal = clminEdit->value();
-    double clmaxVal = clmaxEdit->value();
+    QString clminStr = clminEdit->text();
+    QString clmaxStr = clmaxEdit->text();
     QString outputDir = outputDirEdit->text();
     
-    // Проверка параметров сетки
-    if (clminVal <= 0 || clmaxVal <= 0) {
+    // Проверка и валидация параметров сетки
+    bool ok1, ok2;
+    double clminVal = clminStr.toDouble(&ok1);
+    double clmaxVal = clmaxStr.toDouble(&ok2);
+    
+    if (!ok1 || !ok2 || clminVal <= 0 || clmaxVal <= 0) {
         QMessageBox::warning(this, "Ошибка", "Параметры сетки должны быть положительными числами!");
         runBtn->setEnabled(true);
         return;
@@ -457,11 +321,12 @@ void MainWindow::runAnalysis() {
         QMessageBox::warning(this, "Ошибка", 
             QString("clmin (%1) должен быть меньше или равен clmax (%2)!\nАвтоматически исправляю значения...")
             .arg(clminVal).arg(clmaxVal));
+        // Автоматически исправляем: меняем местами
         double temp = clminVal;
         clminVal = qMin(clminVal, clmaxVal);
         clmaxVal = qMax(temp, clmaxVal);
-        clminEdit->setValue(clminVal);
-        clmaxEdit->setValue(clmaxVal);
+        clminEdit->setText(QString::number(clminVal, 'g', 6));
+        clmaxEdit->setText(QString::number(clmaxVal, 'g', 6));
         outputText->append(QString("Исправлены параметры сетки: clmin=%.6f, clmax=%.6f\n").arg(clminVal).arg(clmaxVal));
     }
     
@@ -470,8 +335,9 @@ void MainWindow::runAnalysis() {
     
     // Подготовка запуска скрипта
     QString meshScript = projectRoot + "/HyperMesh/generate_mesh.sh";
-    QString bashPath = "/bin/bash";
+    QString bashPath = "/bin/bash";  // Абсолютный путь к bash
     
+    // Проверяем существование файлов
     if (!QFileInfo::exists(meshScript)) {
         outputText->append(QString("Ошибка: скрипт не найден: %1\n").arg(meshScript));
         QMessageBox::critical(this, "Ошибка", QString("Скрипт не найден: %1").arg(meshScript));
@@ -479,25 +345,39 @@ void MainWindow::runAnalysis() {
         return;
     }
     
+    if (!QFileInfo::exists(bashPath)) {
+        bashPath = "/usr/bin/bash";  // Альтернативный путь
+        if (!QFileInfo::exists(bashPath)) {
+            outputText->append("Ошибка: bash не найден\n");
+            QMessageBox::critical(this, "Ошибка", "bash не найден");
+            runBtn->setEnabled(true);
+            return;
+        }
+    }
+    
     if (analysisType.contains("Модальный")) {
-        int numModes = numModesEdit->value();
-        double rho = rhoEdit->value();
-        double h = hEdit->value();
+        // Модальный анализ
+        QString numModes = numModesEdit->text();
+        QString rho = rhoEdit->text();
+        QString h = hEdit->text();
         
         outputText->append("Тип: Модальный анализ\n");
         outputText->append(QString("STEP файл: %1\n").arg(stepFile));
         outputText->append(QString("Параметры сетки: clmin=%1, clmax=%2\n").arg(clmin, clmax));
-        outputText->append(QString("Моды: %1, Плотность: %2, Толщина: %3\n").arg(numModes).arg(rho).arg(h));
+        outputText->append(QString("Моды: %1, Плотность: %2, Толщина: %3\n").arg(numModes, rho, h));
         
+        // Сначала генерируем сетку
         outputText->append(QString("Запуск: %1 %2 %3 %4 %5\n").arg(bashPath, meshScript, stepFile, clmin, clmax));
         process->setWorkingDirectory(projectRoot + "/HyperMesh");
         process->start(bashPath, QStringList() << meshScript << stepFile << clmin << clmax);
         
     } else {
+        // Статический FEM анализ
         outputText->append("Тип: Статический FEM анализ\n");
         outputText->append(QString("STEP файл: %1\n").arg(stepFile));
         outputText->append(QString("Параметры сетки: clmin=%1, clmax=%2\n").arg(clmin, clmax));
         
+        // Сначала генерируем сетку
         outputText->append(QString("Запуск: %1 %2 %3 %4 %5\n").arg(bashPath, meshScript, stepFile, clmin, clmax));
         process->setWorkingDirectory(projectRoot + "/HyperMesh");
         process->start(bashPath, QStringList() << meshScript << stepFile << clmin << clmax);
@@ -510,18 +390,22 @@ void MainWindow::processFinished(int exitCode, QProcess::ExitStatus exitStatus) 
     if (exitStatus == QProcess::NormalExit && exitCode == 0) {
         outputText->append("\n=== Расчет завершен успешно ===\n");
         
+        // Проверяем, что это был скрипт генерации сетки, и запускаем FEM
         QString meshScript = projectRoot + "/HyperMesh/generate_mesh.sh";
         if (process->program().contains("bash") && process->arguments().contains(meshScript)) {
             QString analysisType = analysisTypeCombo->currentText();
             QString meshFile = projectRoot + "/build/node.txt";
             
             if (analysisType.contains("Модальный")) {
-                int numModes = numModesEdit->value();
-                double rho = rhoEdit->value();
-                double h = hEdit->value();
+                // Запускаем модальный анализ
+                QString numModes = numModesEdit->text();
+                QString rho = rhoEdit->text();
+                QString h = hEdit->text();
                 
                 outputText->append("Запуск модального анализа...\n");
+                process->setWorkingDirectory(projectRoot + "/fem-module/modal");
                 
+                // Запускаем процесс для модального анализа
                 QProcess *modalProcess = new QProcess(this);
                 connect(modalProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                         [this, modalProcess](int code, QProcess::ExitStatus status) {
@@ -537,21 +421,25 @@ void MainWindow::processFinished(int exitCode, QProcess::ExitStatus exitStatus) 
                     outputText->append("<font color='red'>" + modalProcess->readAllStandardError() + "</font>");
                 });
                 
+                // Проверяем существование модального модуля
                 QString modalExecutable = projectRoot + "/fem-module/build/modal";
                 if (!QFileInfo::exists(modalExecutable)) {
                     outputText->append(QString("Ошибка: Модальный модуль не найден: %1\n").arg(modalExecutable));
+                    outputText->append("Попытка сборки модального модуля...\n");
                     QMessageBox::warning(this, "Предупреждение", "Модальный модуль не найден. Пожалуйста, соберите его:\ncd fem-module/modal && make");
                     runBtn->setEnabled(true);
                     return;
                 }
                 
-                outputText->append(QString("Запуск модального модуля: %1 %2 %3 %4 %5\n")
-                    .arg(modalExecutable, meshFile, QString::number(numModes), QString::number(rho), QString::number(h)));
+                outputText->append(QString("Запуск модального модуля: %1 %2 %3 %4 %5\n").arg(modalExecutable, meshFile, numModes, rho, h));
                 modalProcess->start(modalExecutable, 
-                    QStringList() << meshFile << QString::number(numModes) << QString::number(rho) << QString::number(h));
+                    QStringList() << meshFile << numModes << rho << h);
             } else {
+                // Запускаем FEM анализ
                 outputText->append("Запуск FEM анализа...\n");
+                process->setWorkingDirectory(projectRoot + "/fem-module/2D");
                 
+                // Запускаем процесс для FEM анализа
                 QProcess *femProcess = new QProcess(this);
                 connect(femProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                         [this, femProcess](int code, QProcess::ExitStatus status) {
@@ -567,9 +455,11 @@ void MainWindow::processFinished(int exitCode, QProcess::ExitStatus exitStatus) 
                     outputText->append("<font color='red'>" + femProcess->readAllStandardError() + "</font>");
                 });
                 
+                // Проверяем существование FEM модуля
                 QString femExecutable = projectRoot + "/fem-module/build/fem";
                 if (!QFileInfo::exists(femExecutable)) {
                     outputText->append(QString("Ошибка: FEM модуль не найден: %1\n").arg(femExecutable));
+                    outputText->append("Попытка сборки FEM модуля...\n");
                     QMessageBox::warning(this, "Предупреждение", "FEM модуль не найден. Пожалуйста, соберите его:\ncd fem-module/2D && make");
                     runBtn->setEnabled(true);
                     return;
@@ -579,6 +469,7 @@ void MainWindow::processFinished(int exitCode, QProcess::ExitStatus exitStatus) 
                 femProcess->start(femExecutable, QStringList() << meshFile);
             }
         } else {
+            // Это был FEM или модальный анализ, сохраняем результаты
             saveResultsToDesktop();
         }
     } else {
@@ -588,50 +479,34 @@ void MainWindow::processFinished(int exitCode, QProcess::ExitStatus exitStatus) 
 }
 
 void MainWindow::saveResultsToDesktop() {
-    QString outputDir = outputDirEdit->text();
-    QString resultFileName = resultFileEdit->text().isEmpty() ? "result.txt" : resultFileEdit->text();
-    QString resultsFile = outputDir + "/" + resultFileName;
-    
-    // Читаем результаты расчета из fem-module/2D/build/result.txt
-    QString femResultFile = projectRoot + "/fem-module/2D/build/result.txt";
-    QString resultContent;
-    
-    if (QFileInfo::exists(femResultFile)) {
-        QFile femFile(femResultFile);
-        if (femFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream in(&femFile);
-            resultContent = in.readAll();
-            femFile.close();
-        }
-    }
-    
-    // Если результатов нет, сообщаем об ошибке
-    if (resultContent.isEmpty()) {
-        outputText->append("\n=== Ошибка: Результаты расчета не найдены ===\n");
-        QMessageBox::warning(this, "Ошибка", "Файл результатов не найден:\n" + femResultFile);
-        return;
-    }
-    
-    // Также сохраняем в Desktop
     QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-    QString desktopResultsFile = desktopPath + "/" + resultFileName;
+    QString resultsFile = desktopPath + "/Results.txt";
     
-    // Сохраняем только результаты расчета (без параметров и лога)
     QFile file(resultsFile);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
-        // Сохраняем только содержимое result.txt (результаты расчета)
-        out << resultContent;
+        out << "=== SmartFEM Results ===\n\n";
+        out << "Date: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n\n";
+        out << "Parameters:\n";
+        out << "  STEP file: " << stepFileEdit->text() << "\n";
+        out << "  Mesh: clmin=" << clminEdit->text() << ", clmax=" << clmaxEdit->text() << "\n";
+        out << "  Material: E=" << eEdit->text() << ", ν=" << nuEdit->text() 
+            << ", ρ=" << rhoEdit->text() << ", h=" << hEdit->text() << "\n";
+        out << "  Analysis type: " << analysisTypeCombo->currentText() << "\n";
+        if (analysisTypeCombo->currentText().contains("Модальный")) {
+            out << "  Number of modes: " << numModesEdit->text() << "\n";
+        }
+        out << "\n";
+        out << "Output:\n";
+        out << outputText->toPlainText();
         file.close();
         
         outputText->append(QString("\n=== Результаты сохранены: %1 ===\n").arg(resultsFile));
         
-        // Копируем также на Desktop
-        QFile::copy(resultsFile, desktopResultsFile);
-        
+        // Открываем Gmsh для визуализации сетки
         openGmsh();
         
-        QMessageBox::information(this, "Успешно", QString("Результаты сохранены в:\n%1\n\nТакже скопировано на Desktop:\n%2\n\nGmsh открыт для визуализации.").arg(resultsFile).arg(desktopResultsFile));
+        QMessageBox::information(this, "Успешно", QString("Результаты сохранены в:\n%1\n\nGmsh открыт для визуализации.").arg(resultsFile));
     } else {
         outputText->append(QString("\n=== Ошибка сохранения: %1 ===\n").arg(file.errorString()));
     }
@@ -643,11 +518,13 @@ void MainWindow::openGmsh() {
     QString nodeFile = projectRoot + "/build/node.txt";
     QString posFile = projectRoot + "/build/results.pos";
     
+    // Проверяем существование файла сетки
     if (!QFileInfo::exists(mshFile)) {
         outputText->append(QString("Предупреждение: Файл сетки не найден: %1\n").arg(mshFile));
         return;
     }
     
+    // Создаем файл результатов для Gmsh, если есть результаты расчета
     if (QFileInfo::exists(resultFile) && QFileInfo::exists(nodeFile)) {
         QString scriptPath = projectRoot + "/HyperMesh/create_gmsh_results.py";
         if (QFileInfo::exists(scriptPath)) {
@@ -663,6 +540,7 @@ void MainWindow::openGmsh() {
         }
     }
     
+    // Ищем gmsh в PATH
     QString gmshPath = "gmsh";
     QStringList searchPaths = {"/usr/local/bin/gmsh", "/opt/homebrew/bin/gmsh", "/usr/bin/gmsh"};
     
@@ -675,6 +553,7 @@ void MainWindow::openGmsh() {
         }
     }
     
+    // Проверяем через which
     if (!found) {
         QProcess whichProc;
         whichProc.start("which", QStringList() << "gmsh");
@@ -690,6 +569,7 @@ void MainWindow::openGmsh() {
         return;
     }
     
+    // Формируем список файлов для загрузки в Gmsh
     QStringList filesToLoad;
     filesToLoad << mshFile;
     if (QFileInfo::exists(posFile)) {
@@ -701,6 +581,7 @@ void MainWindow::openGmsh() {
         outputText->append(QString("Загрузка результатов: %1\n").arg(posFile));
     }
     
+    // Запускаем Gmsh в фоновом режиме
     QProcess *gmshProcess = new QProcess(this);
     gmshProcess->startDetached(gmshPath, filesToLoad);
     
@@ -709,6 +590,7 @@ void MainWindow::openGmsh() {
         gmshProcess->deleteLater();
     } else {
         outputText->append("Gmsh запущен для визуализации сетки и результатов\n");
+        // Не удаляем процесс, так как он запущен detached
     }
 }
 
