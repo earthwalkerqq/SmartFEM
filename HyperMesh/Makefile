@@ -11,7 +11,7 @@ else
 	GMSH_LIB := /usr/local/lib
 endif
 
-CFLAGS := -Wall -Werror -Wextra -Iinc -I$(GMSH_INC) -DDIMENSION=3
+CFLAGS := -Wall -Werror -Wextra -Iinc -I$(GMSH_INC) -DDIMENSION=2
 ifeq ($(OS), Darwin)
 	LDFLAGS := -L$(GMSH_LIB) -Wl,-rpath,$(GMSH_LIB) -lgmsh -lm
 else

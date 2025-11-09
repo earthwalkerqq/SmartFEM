@@ -9,6 +9,7 @@
 #include "../../preprocess/gui/mainwindow.h"
 #include <QtGui/qtextcursor.h>
 #include <QtCore/qmetatype.h>
+#include <QtCore/QSet>
 
 #include <QtCore/qtmochelpers.h>
 
@@ -43,9 +44,22 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         "browseStepFile",
         "",
         "browseOutputDir",
+        "loadMesh",
         "calculateMeshParams",
-        "openNodeSelectionWindow",
+        "generateMesh",
         "onBoundaryConditionsChanged",
+        "onNodesSelected",
+        "QSet<int>",
+        "nodeIds",
+        "onNodeClicked",
+        "nodeId",
+        "coords",
+        "onNodeDoubleClicked",
+        "addFixedNode",
+        "addLoadNode",
+        "removeFixedNode",
+        "removeLoadNode",
+        "clearAllLoads",
         "runAnalysis",
         "processFinished",
         "exitCode",
@@ -63,26 +77,50 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'browseOutputDir'
         QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'calculateMeshParams'
+        // Slot 'loadMesh'
         QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'openNodeSelectionWindow'
+        // Slot 'calculateMeshParams'
         QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onBoundaryConditionsChanged'
+        // Slot 'generateMesh'
         QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'runAnalysis'
+        // Slot 'onBoundaryConditionsChanged'
         QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onNodesSelected'
+        QtMocHelpers::SlotData<void(const QSet<int> &)>(8, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { 0x80000000 | 9, 10 },
+        }}),
+        // Slot 'onNodeClicked'
+        QtMocHelpers::SlotData<void(int, const QPointF &)>(11, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 12 }, { QMetaType::QPointF, 13 },
+        }}),
+        // Slot 'onNodeDoubleClicked'
+        QtMocHelpers::SlotData<void(int, const QPointF &)>(14, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 12 }, { QMetaType::QPointF, 13 },
+        }}),
+        // Slot 'addFixedNode'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'addLoadNode'
+        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'removeFixedNode'
+        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'removeLoadNode'
+        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'clearAllLoads'
+        QtMocHelpers::SlotData<void()>(19, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'runAnalysis'
+        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'processFinished'
-        QtMocHelpers::SlotData<void(int, QProcess::ExitStatus)>(8, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 9 }, { 0x80000000 | 10, 11 },
+        QtMocHelpers::SlotData<void(int, QProcess::ExitStatus)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 22 }, { 0x80000000 | 23, 24 },
         }}),
         // Slot 'processError'
-        QtMocHelpers::SlotData<void(QProcess::ProcessError)>(12, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { 0x80000000 | 13, 14 },
+        QtMocHelpers::SlotData<void(QProcess::ProcessError)>(25, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { 0x80000000 | 26, 27 },
         }}),
         // Slot 'saveResultsToDesktop'
-        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(28, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'openGmsh'
-        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(29, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -108,15 +146,36 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         switch (_id) {
         case 0: _t->browseStepFile(); break;
         case 1: _t->browseOutputDir(); break;
-        case 2: _t->calculateMeshParams(); break;
-        case 3: _t->openNodeSelectionWindow(); break;
-        case 4: _t->onBoundaryConditionsChanged(); break;
-        case 5: _t->runAnalysis(); break;
-        case 6: _t->processFinished((*reinterpret_cast< std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QProcess::ExitStatus>>(_a[2]))); break;
-        case 7: _t->processError((*reinterpret_cast< std::add_pointer_t<QProcess::ProcessError>>(_a[1]))); break;
-        case 8: _t->saveResultsToDesktop(); break;
-        case 9: _t->openGmsh(); break;
+        case 2: _t->loadMesh(); break;
+        case 3: _t->calculateMeshParams(); break;
+        case 4: _t->generateMesh(); break;
+        case 5: _t->onBoundaryConditionsChanged(); break;
+        case 6: _t->onNodesSelected((*reinterpret_cast< std::add_pointer_t<QSet<int>>>(_a[1]))); break;
+        case 7: _t->onNodeClicked((*reinterpret_cast< std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QPointF>>(_a[2]))); break;
+        case 8: _t->onNodeDoubleClicked((*reinterpret_cast< std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QPointF>>(_a[2]))); break;
+        case 9: _t->addFixedNode(); break;
+        case 10: _t->addLoadNode(); break;
+        case 11: _t->removeFixedNode(); break;
+        case 12: _t->removeLoadNode(); break;
+        case 13: _t->clearAllLoads(); break;
+        case 14: _t->runAnalysis(); break;
+        case 15: _t->processFinished((*reinterpret_cast< std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QProcess::ExitStatus>>(_a[2]))); break;
+        case 16: _t->processError((*reinterpret_cast< std::add_pointer_t<QProcess::ProcessError>>(_a[1]))); break;
+        case 17: _t->saveResultsToDesktop(); break;
+        case 18: _t->openGmsh(); break;
         default: ;
+        }
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+        switch (_id) {
+        default: *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType(); break;
+        case 6:
+            switch (*reinterpret_cast<int*>(_a[1])) {
+            default: *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType(); break;
+            case 0:
+                *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType::fromType< QSet<int> >(); break;
+            }
+            break;
         }
     }
 }
@@ -140,14 +199,14 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 10)
+        if (_id < 19)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 10;
+        _id -= 19;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 10)
-            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 10;
+        if (_id < 19)
+            qt_static_metacall(this, _c, _id, _a);
+        _id -= 19;
     }
     return _id;
 }

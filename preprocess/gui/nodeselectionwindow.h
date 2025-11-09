@@ -48,6 +48,7 @@ private slots:
 private:
     void setupUI();
     void readNodeFile();
+    bool saveBoundaryConditionsToFile();
     
     QString mshFile;
     QString nodeFile;

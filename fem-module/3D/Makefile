@@ -1,0 +1,35 @@
+CC := clang
+
+BUILD_FOLDER := ../build
+
+OS := $(shell uname -s)
+
+CFLAGS := -Wall -Werror -Wextra -Iinc -I../2D/inc -I../2D/utils
+LDFLAGS := -lm ../build/libfem.a
+
+SRC_FILES := $(wildcard src/*.c)
+OBJ_FILES := $(patsubst src/%.c,$(BUILD_FOLDER)/3d_%.o,$(SRC_FILES))
+
+.PHONY: all clean rebuild
+
+FEM_LIB := ../build/libfem.a
+
+all: $(BUILD_FOLDER) $(FEM_LIB) $(BUILD_FOLDER)/3d
+
+$(BUILD_FOLDER):
+	mkdir -p $(BUILD_FOLDER)
+
+$(FEM_LIB):
+	$(MAKE) -C ../2D $(FEM_LIB)
+
+$(BUILD_FOLDER)/3d_%.o: src/%.c | $(BUILD_FOLDER)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_FOLDER)/3d: main.c $(OBJ_FILES) | $(BUILD_FOLDER) $(FEM_LIB)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	@echo "Built $@"
+
+clean:
+	rm -rf $(BUILD_FOLDER)/3d_*.o $(BUILD_FOLDER)/3d
+
+rebuild: clean all

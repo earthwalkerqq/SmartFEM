@@ -19,9 +19,12 @@
 #include <QSpinBox>
 #include <QDoubleSpinBox>
 #include <QMap>
+#include <QSplitter>
+#include <QScrollArea>
+#include <QListWidget>
 
-// Предварительное объявление для окна выбора узлов
-class NodeSelectionWindow;
+// Предварительное объявление
+class MeshViewer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -34,15 +37,24 @@ private slots:
     // Раздел 1: Выбор файла и места сохранения
     void browseStepFile();
     void browseOutputDir();
+    void loadMesh();
     
     // Раздел 2: Материал (уже есть в UI)
     
     // Раздел 3: Параметры сетки
     void calculateMeshParams();
+    void generateMesh();
     
     // Раздел 4: Выбор сил и граничных условий
-    void openNodeSelectionWindow();
     void onBoundaryConditionsChanged();
+    void onNodesSelected(const QSet<int> &nodeIds);
+    void onNodeClicked(int nodeId, const QPointF &coords);
+    void onNodeDoubleClicked(int nodeId, const QPointF &coords);
+    void addFixedNode();
+    void addLoadNode();
+    void removeFixedNode();
+    void removeLoadNode();
+    void clearAllLoads();
     
     // Раздел 5: Выбор расчета
     void runAnalysis();
@@ -60,6 +72,7 @@ private:
     void setupMeshGroup();      // Раздел 3
     void setupBoundaryGroup();  // Раздел 4
     void setupAnalysisGroup();  // Раздел 5
+    void applyModernStyles();   // Применение современных стилей
     
     // Создание групп UI
     QGroupBox* createFileGroup();
@@ -67,6 +80,16 @@ private:
     QGroupBox* createMeshGroup();
     QGroupBox* createBoundaryGroup();
     QGroupBox* createAnalysisGroup();
+    
+    // Вспомогательные методы для работы с граничными условиями
+    void updateMeshViewerBoundaryConditions();
+    bool saveBoundaryConditionsToFile();
+    bool loadBoundaryConditionsFromFile();
+    void selectNodeById();  // Оставлен для совместимости (не используется)
+    void updateSelectedNodesLabel();  // Оставлен для совместимости (не используется)
+    
+    // Вспомогательные методы для генерации сетки
+    int countElementsInMeshFile(const QString &mshFile);
     
     // Раздел 1: Файлы
     QLineEdit *stepFileEdit;
@@ -88,9 +111,18 @@ private:
     QDoubleSpinBox *clmaxEdit;
     
     // Раздел 4: Граничные условия и нагрузки
-    QPushButton *openNodeSelectionBtn;
     QLabel *boundaryConditionsLabel;
     QLabel *loadsLabel;
+    QComboBox *constraintTypeCombo;
+    QDoubleSpinBox *loadFxEdit;
+    QDoubleSpinBox *loadFyEdit;
+    QPushButton *addFixedBtn;
+    QPushButton *addLoadBtn;
+    QListWidget *fixedUListWidget;
+    QListWidget *fixedVListWidget;
+    QListWidget *loadedListWidget;
+    QPushButton *removeFixedBtn;
+    QPushButton *removeLoadBtn;
     
     // Раздел 5: Выбор расчета
     QComboBox *analysisTypeCombo;
@@ -108,12 +140,15 @@ private:
     QStringList fixedNodesV;    // Узлы с закреплением по V (y)
     QStringList loadedNodes;    // Узлы с нагрузками
     QMap<QString, QPair<double, double>> nodeLoads;  // Нагрузки: node_id -> (Fx, Fy)
+    bool boundaryConditionsModifiedByUser;  // Флаг: были ли граничные условия изменены пользователем после загрузки из файла
     
     // Корень проекта
     QString projectRoot;
     
-    // Окно выбора узлов
-    NodeSelectionWindow *nodeSelectionWindow;
+    // 3D визуализация
+    MeshViewer *meshViewer;
+    QSplitter *mainSplitter;
+    QScrollArea *paramsScrollArea;
 };
 
 #endif // MAINWINDOW_H

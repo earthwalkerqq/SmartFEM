@@ -12,7 +12,8 @@ with open(msh_file, 'r') as f:
     lines = f.readlines()
 
 # Найти секцию узлов
-nodes = []
+nodes = []  # Список кортежей (tag, x, y, z)
+node_tag_to_index = {}  # Словарь: tag -> index (1-based) в node.txt
 i = 0
 while i < len(lines):
     line = lines[i].strip()
@@ -21,12 +22,19 @@ while i < len(lines):
         if i < len(lines):
             num_nodes = int(lines[i].strip().split()[0])
             i += 1
+            node_index = 1  # Индекс в node.txt (1-based)
             for j in range(num_nodes):
                 if i < len(lines):
                     parts = lines[i].strip().split()
                     if len(parts) >= 4:
                         # Формат: номер_узла x y z
-                        nodes.append((float(parts[1]), float(parts[2]), float(parts[3])))
+                        node_tag = int(parts[0])
+                        x = float(parts[1])
+                        y = float(parts[2])
+                        z = float(parts[3])
+                        nodes.append((node_tag, x, y, z))
+                        node_tag_to_index[node_tag] = node_index
+                        node_index += 1
                     i += 1
         break
     i += 1
@@ -55,10 +63,21 @@ while i < len(lines):
                                 idx = 3 + num_tags
                                 # Проверить, что есть достаточно элементов для узлов
                                 if len(parts) >= idx + 3:
-                                    elem_nodes = [int(parts[idx]), int(parts[idx+1]), int(parts[idx+2])]
-                                    elements.append(elem_nodes)
-                        except (ValueError, IndexError):
-                            pass
+                                    # Получаем теги узлов из MSH файла
+                                    node_tag1 = int(parts[idx])
+                                    node_tag2 = int(parts[idx+1])
+                                    node_tag3 = int(parts[idx+2])
+                                    
+                                    # Преобразуем теги в индексы (1-based) в node.txt
+                                    if node_tag1 in node_tag_to_index and node_tag2 in node_tag_to_index and node_tag3 in node_tag_to_index:
+                                        node_idx1 = node_tag_to_index[node_tag1]
+                                        node_idx2 = node_tag_to_index[node_tag2]
+                                        node_idx3 = node_tag_to_index[node_tag3]
+                                        elements.append([node_idx1, node_idx2, node_idx3])
+                                    else:
+                                        print(f"Warning: Node tags not found in node list: {node_tag1}, {node_tag2}, {node_tag3}", file=sys.stderr)
+                        except (ValueError, IndexError) as e:
+                            print(f"Warning: Error parsing element: {e}", file=sys.stderr)
                     i += 1
         break
     i += 1
@@ -68,10 +87,11 @@ if not found:
 
 # Автоматическое определение граничных условий
 # Находим минимальные и максимальные координаты
+# nodes содержит кортежи (node_tag, x, y, z)
 if nodes:
-    x_coords = [n[0] for n in nodes]
-    y_coords = [n[1] for n in nodes]
-    z_coords = [n[2] for n in nodes]
+    x_coords = [n[1] for n in nodes]  # x - индекс 1
+    y_coords = [n[2] for n in nodes]  # y - индекс 2
+    z_coords = [n[3] for n in nodes]  # z - индекс 3
     
     x_min, x_max = min(x_coords), max(x_coords)
     y_min, y_max = min(y_coords), max(y_coords)
@@ -93,51 +113,59 @@ if nodes:
     both_fixed_count = 0
     
     # Записать в формат node.txt с граничными условиями
+    # Формат: x y z u_flag v_flag load_flag
+    # где u_flag=0 означает закрепление по U (x), v_flag=0 означает закрепление по V (y)
+    # Координаты сохраняются как есть (не изменяются)
     with open(node_file, 'w') as f:
         f.write(f"{len(nodes)}\n")
-        for i, (x, y, z) in enumerate(nodes):
+        for i, (node_tag, x, y, z) in enumerate(nodes):
             # Определяем граничные условия
-            # car[0][i] == 0 означает закрепление по U (x)
-            # car[1][i] == 0 означает закрепление по V (y)
-            # Важно: координаты сохраняются как есть, но для узлов на границах
-            # устанавливаем координату в 0 для указания закрепления
+            # u_flag = 0.0 означает закрепление по U (x направление)
+            # v_flag = 0.0 означает закрепление по V (y направление)
+            # load_flag = 0.0 означает отсутствие нагрузки (по умолчанию)
             
-            x_bc = x
-            y_bc = y
+            u_flag = 1.0  # По умолчанию узел не закреплен по U
+            v_flag = 1.0  # По умолчанию узел не закреплен по V
+            load_flag = 0.0  # По умолчанию нет нагрузки
             
             # Определяем, на каких границах находится узел
-            on_left_edge = abs(x - x_min) < tolerance_x
-            on_right_edge = abs(x - x_max) < tolerance_x
-            on_bottom_edge = abs(y - y_min) < tolerance_y
-            on_top_edge = abs(y - y_max) < tolerance_y
+            dx_left = abs(x - x_min)
+            dx_right = abs(x - x_max)
+            dy_bottom = abs(y - y_min)
+            dy_top = abs(y - y_max)
+            
+            on_left_edge = dx_left < tolerance_x
+            on_right_edge = dx_right < tolerance_x
+            on_bottom_edge = dy_bottom < tolerance_y
+            on_top_edge = dy_top < tolerance_y
             
             # Закрепляем узлы на левой грани (x_min) по U
-            # Устанавливаем координату x в 0 для указания закрепления
             if on_left_edge:
-                x_bc = 0.0
+                u_flag = 0.0
                 u_fixed_count += 1
             
             # Закрепляем узлы на нижней грани (y_min) по V
-            # Устанавливаем координату y в 0 для указания закрепления
             if on_bottom_edge:
-                y_bc = 0.0
+                v_flag = 0.0
                 v_fixed_count += 1
             
             # Если узел на пересечении левой и нижней границ, закрепляем по обеим осям
             if on_left_edge and on_bottom_edge:
                 both_fixed_count += 1
             
-            f.write(f"{x_bc} {y_bc} {z}\n")
+            # Записываем координаты (как есть) и флаги граничных условий
+            f.write(f"{x} {y} {z} {u_flag} {v_flag} {load_flag}\n")
         
         f.write(f"{len(elements)}\n")
         for elem in elements:
             f.write(f"{elem[0]} {elem[1]} {elem[2]}\n")
 else:
-    # Если узлов нет, записываем как есть
+    # Если узлов нет, записываем как есть (без граничных условий)
     with open(node_file, 'w') as f:
         f.write(f"{len(nodes)}\n")
-        for x, y, z in nodes:
-            f.write(f"{x} {y} {z}\n")
+        for node_tag, x, y, z in nodes:
+            # Записываем координаты и граничные условия по умолчанию (все узлы свободны)
+            f.write(f"{x} {y} {z} 1.0 1.0 0.0\n")
         f.write(f"{len(elements)}\n")
         for elem in elements:
             f.write(f"{elem[0]} {elem[1]} {elem[2]}\n")

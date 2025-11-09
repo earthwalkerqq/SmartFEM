@@ -17,7 +17,7 @@ CXX           = /Library/Developer/CommandLineTools/usr/bin/clang++
 DEFINES       = -DQT_NO_DEBUG -DQT_OPENGLWIDGETS_LIB -DQT_WIDGETS_LIB -DQT_OPENGL_LIB -DQT_GUI_LIB -DQT_CORE_LIB
 CFLAGS        = -pipe -O2 $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wall -Wextra $(DEFINES)
 CXXFLAGS      = -pipe -stdlib=libc++ -O2 -std=gnu++1z $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wall -Wextra $(DEFINES)
-INCPATH       = -I. -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I../../build/gui_moc -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/opt/homebrew/share/qt/mkspecs/macx-clang -F/opt/homebrew/lib
+INCPATH       = -I. -I/opt/homebrew/opt/gmsh/include -I/opt/homebrew/opt/glm/include -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I../../build/gui_moc -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/OpenGL.framework/Headers -I/opt/homebrew/share/qt/mkspecs/macx-clang -F/opt/homebrew/lib
 QMAKE         = /opt/homebrew/bin/qmake
 DEL_FILE      = rm -f
 CHK_DIR_EXISTS= test -d
@@ -39,8 +39,8 @@ COMPRESS      = gzip -9f
 DISTNAME      = SmartFEM_GUI1.0.0
 DISTDIR = /Users/matvej/Desktop/SmartFEM/build/gui_obj/SmartFEM_GUI1.0.0
 LINK          = /Library/Developer/CommandLineTools/usr/bin/clang++
-LFLAGS        = -stdlib=libc++ -headerpad_max_install_names $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wl,-rpath,@executable_path/../Frameworks -Wl,-rpath,/opt/homebrew/lib
-LIBS          = $(SUBLIBS) -F/opt/homebrew/lib -framework QtOpenGLWidgets -framework QtWidgets -framework QtOpenGL -framework QtGui -framework AppKit -framework ImageIO -framework Metal -framework QtCore -framework IOKit -framework DiskArbitration -framework UniformTypeIdentifiers -framework OpenGL   
+LFLAGS        = -stdlib=libc++ -headerpad_max_install_names $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wl,-rpath,/opt/homebrew/opt/gmsh/lib -Wl,-rpath,@executable_path/../Frameworks -Wl,-rpath,/opt/homebrew/lib
+LIBS          = $(SUBLIBS) -F/opt/homebrew/lib -L/opt/homebrew/opt/gmsh/lib -lgmsh -framework QtOpenGLWidgets -framework QtWidgets -framework QtOpenGL -framework QtGui -framework AppKit -framework ImageIO -framework Metal -framework QtCore -framework IOKit -framework DiskArbitration -framework UniformTypeIdentifiers -framework OpenGL   
 AR            = /Library/Developer/CommandLineTools/usr/bin/ar cq
 RANLIB        = /Library/Developer/CommandLineTools/usr/bin/ranlib -s
 SED           = sed
@@ -56,7 +56,8 @@ SOURCES       = main.cpp \
 		mainwindow.cpp \
 		nodeselectionwindow.cpp \
 		meshviewer.cpp \
-		meshviewerwindow.cpp ../../build/gui_moc/moc_mainwindow.cpp \
+		meshviewerwindow.cpp \
+		meshgenerator.cpp ../../build/gui_moc/moc_mainwindow.cpp \
 		../../build/gui_moc/moc_nodeselectionwindow.cpp \
 		../../build/gui_moc/moc_meshviewer.cpp \
 		../../build/gui_moc/moc_meshviewerwindow.cpp
@@ -65,6 +66,7 @@ OBJECTS       = ../../build/gui_obj/main.o \
 		../../build/gui_obj/nodeselectionwindow.o \
 		../../build/gui_obj/meshviewer.o \
 		../../build/gui_obj/meshviewerwindow.o \
+		../../build/gui_obj/meshgenerator.o \
 		../../build/gui_obj/moc_mainwindow.o \
 		../../build/gui_obj/moc_nodeselectionwindow.o \
 		../../build/gui_obj/moc_meshviewer.o \
@@ -442,11 +444,13 @@ DIST          = /opt/homebrew/share/qt/mkspecs/features/spec_pre.prf \
 		SmartFEM_GUI.pro mainwindow.h \
 		nodeselectionwindow.h \
 		meshviewer.h \
-		meshviewerwindow.h main.cpp \
+		meshviewerwindow.h \
+		meshgenerator.h main.cpp \
 		mainwindow.cpp \
 		nodeselectionwindow.cpp \
 		meshviewer.cpp \
-		meshviewerwindow.cpp
+		meshviewerwindow.cpp \
+		meshgenerator.cpp
 QMAKE_TARGET  = SmartFEM_GUI
 DESTDIR       = ../../build/
 TARGET        = ../../build/SmartFEM_GUI.app/Contents/MacOS/SmartFEM_GUI
@@ -1249,8 +1253,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/homebrew/share/qt/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents mainwindow.h nodeselectionwindow.h meshviewer.h meshviewerwindow.h $(DISTDIR)/
-	$(COPY_FILE) --parents main.cpp mainwindow.cpp nodeselectionwindow.cpp meshviewer.cpp meshviewerwindow.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents mainwindow.h nodeselectionwindow.h meshviewer.h meshviewerwindow.h meshgenerator.h $(DISTDIR)/
+	$(COPY_FILE) --parents main.cpp mainwindow.cpp nodeselectionwindow.cpp meshviewer.cpp meshviewerwindow.cpp meshgenerator.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -1323,9 +1327,15 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QScrollArea \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qscrollarea.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QListWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlistwidget.h \
 		../../build/gui_moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib mainwindow.h -o ../../build/gui_moc/moc_mainwindow.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/opt/gmsh/include -I/opt/homebrew/opt/glm/include -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib mainwindow.h -o ../../build/gui_moc/moc_mainwindow.cpp
 
 ../../build/gui_moc/moc_nodeselectionwindow.cpp: nodeselectionwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
@@ -1359,12 +1369,13 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
 		../../build/gui_moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib nodeselectionwindow.h -o ../../build/gui_moc/moc_nodeselectionwindow.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/opt/gmsh/include -I/opt/homebrew/opt/glm/include -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib nodeselectionwindow.h -o ../../build/gui_moc/moc_nodeselectionwindow.cpp
 
 ../../build/gui_moc/moc_meshviewer.cpp: meshviewer.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
 		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
@@ -1375,7 +1386,7 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
 		../../build/gui_moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib meshviewer.h -o ../../build/gui_moc/moc_meshviewer.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/opt/gmsh/include -I/opt/homebrew/opt/glm/include -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib meshviewer.h -o ../../build/gui_moc/moc_meshviewer.cpp
 
 ../../build/gui_moc/moc_meshviewerwindow.cpp: meshviewerwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
@@ -1387,21 +1398,22 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
 		meshviewer.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
 		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
 		/opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPointF \
 		/opt/homebrew/lib/QtCore.framework/Headers/qpoint.h \
-		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
-		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
 		../../build/gui_moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib meshviewerwindow.h -o ../../build/gui_moc/moc_meshviewerwindow.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/matvej/Desktop/SmartFEM/build/gui_moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/matvej/Desktop/SmartFEM/preprocess/gui -I/opt/homebrew/opt/gmsh/include -I/opt/homebrew/opt/glm/include -I/opt/homebrew/lib/QtOpenGLWidgets.framework/Headers -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtOpenGL.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/opt/homebrew/Cellar/check/0.15.2/include -I. -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib meshviewerwindow.h -o ../../build/gui_moc/moc_meshviewerwindow.cpp
 
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
@@ -1456,6 +1468,12 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QScrollArea \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qscrollarea.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QListWidget \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qlistwidget.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/main.o main.cpp
@@ -1495,13 +1513,28 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
-		nodeselectionwindow.h \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QScrollArea \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qscrollarea.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QListWidget \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlistwidget.h \
+		meshviewer.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QPointF \
+		/opt/homebrew/lib/QtCore.framework/Headers/qpoint.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
 		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
+		meshgenerator.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QString \
+		/opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QStringList \
+		/opt/homebrew/lib/QtCore.framework/Headers/qstringlist.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QDir \
@@ -1516,8 +1549,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtCore.framework/Headers/qtextstream.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QFile \
 		/opt/homebrew/lib/QtCore.framework/Headers/qfile.h \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h
+		/opt/homebrew/lib/QtGui.framework/Headers/QVector3D \
+		/opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/mainwindow.o mainwindow.cpp
 
 ../../build/gui_obj/nodeselectionwindow.o: nodeselectionwindow.cpp nodeselectionwindow.h \
@@ -1555,6 +1588,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
 		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
 		/opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPointF \
@@ -1581,6 +1615,7 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
 		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
@@ -1597,8 +1632,215 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtCore.framework/Headers/qdebug.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QTimer \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QRect \
+		/opt/homebrew/lib/QtCore.framework/Headers/qrect.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QtMath \
-		/opt/homebrew/lib/QtCore.framework/Headers/qmath.h
+		/opt/homebrew/lib/QtCore.framework/Headers/qmath.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QVector3D \
+		/opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h \
+		/opt/homebrew/opt/glm/include/glm/glm.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/_fixes.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/setup.hpp \
+		/opt/homebrew/opt/glm/include/glm/simd/platform.h \
+		/opt/homebrew/opt/glm/include/glm/simd/neon.h \
+		/opt/homebrew/opt/glm/include/glm/fwd.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/qualifier.hpp \
+		/opt/homebrew/opt/glm/include/glm/vec2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/_swizzle.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/_swizzle_func.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec2.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/compute_vector_relational.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int2_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/scalar_int_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint2_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/scalar_uint_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/vec3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec3.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/compute_vector_decl.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/_vectorize.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int3_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint3_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/vec4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec4.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int4_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint4_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat2x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double2x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat2x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat2x2.inl \
+		/opt/homebrew/opt/glm/include/glm/matrix.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat2x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double2x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat2x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat2x3.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double2x3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float2x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float2x3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat2x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double2x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat2x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat2x4.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double2x4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float2x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float2x4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat3x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double3x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat3x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat3x2.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double3x2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float3x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float3x2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat3x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double3x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat3x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat3x3.inl \
+		/opt/homebrew/opt/glm/include/glm/common.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_common.inl \
+		/opt/homebrew/opt/glm/include/glm/vector_relational.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_vector_relational.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/func_vector_relational_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/compute_common.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec1.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_vec1.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/func_common_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/simd/common.h \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double3x3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float3x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float3x3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat3x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double3x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat3x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat3x4.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double3x4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float3x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float3x4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat4x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double4x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat4x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat4x2.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double4x2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float4x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float4x2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat4x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double4x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat4x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat4x3.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double4x3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float4x3.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float4x3_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/mat4x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double4x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat4x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat4x4.inl \
+		/opt/homebrew/opt/glm/include/glm/geometric.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_geometric.inl \
+		/opt/homebrew/opt/glm/include/glm/exponential.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_exponential.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/func_exponential_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/simd/exponential.h \
+		/opt/homebrew/opt/glm/include/glm/detail/func_geometric_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/simd/geometric.h \
+		/opt/homebrew/opt/glm/include/glm/detail/type_mat4x4_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double4x4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float4x4.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float4x4_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_matrix.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/func_matrix_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/simd/matrix.h \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_double2x2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float2x2.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_float2x2_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/trigonometric.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_trigonometric.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/func_trigonometric_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/packing.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_packing.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/type_half.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_half.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/func_packing_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/integer.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/func_integer.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/func_integer_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/simd/integer.h \
+		/opt/homebrew/opt/glm/include/glm/gtc/quaternion.hpp \
+		/opt/homebrew/opt/glm/include/glm/gtc/constants.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/scalar_constants.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/scalar_constants.inl \
+		/opt/homebrew/opt/glm/include/glm/gtc/constants.inl \
+		/opt/homebrew/opt/glm/include/glm/gtc/matrix_transform.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_projection.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_projection.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_clip_space.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_clip_space.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_transform.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/matrix_transform.inl \
+		/opt/homebrew/opt/glm/include/glm/gtc/matrix_transform.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_relational.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_relational.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/type_float.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_common.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_geometric.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_geometric.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_common.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_common_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_float.hpp \
+		/opt/homebrew/opt/glm/include/glm/detail/type_quat.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_relational.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_relational.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/type_quat.inl \
+		/opt/homebrew/opt/glm/include/glm/detail/type_quat_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_float_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_double.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_double_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_trigonometric.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_trigonometric.inl \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_transform.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/quaternion_transform.inl \
+		/opt/homebrew/opt/glm/include/glm/gtc/quaternion.inl \
+		/opt/homebrew/opt/glm/include/glm/gtc/epsilon.hpp \
+		/opt/homebrew/opt/glm/include/glm/gtc/epsilon.inl \
+		/opt/homebrew/opt/glm/include/glm/gtc/quaternion_simd.inl \
+		/opt/homebrew/opt/glm/include/glm/gtc/type_ptr.hpp \
+		/opt/homebrew/opt/glm/include/glm/gtc/vec1.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool1.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_bool1_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float1.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_float1_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double1.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_double1_precision.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int1.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_int1_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint1.hpp \
+		/opt/homebrew/opt/glm/include/glm/ext/vector_uint1_sized.hpp \
+		/opt/homebrew/opt/glm/include/glm/gtc/type_ptr.inl
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/meshviewer.o meshviewer.cpp
 
 ../../build/gui_obj/meshviewerwindow.o: meshviewerwindow.cpp meshviewerwindow.h \
@@ -1611,23 +1853,48 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
 		meshviewer.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
 		/opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
 		/opt/homebrew/lib/QtGui.framework/Headers/QWheelEvent \
+		/opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPair \
 		/opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QPointF \
 		/opt/homebrew/lib/QtCore.framework/Headers/qpoint.h \
-		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
-		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QFileInfo \
 		/opt/homebrew/lib/QtCore.framework/Headers/qfileinfo.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/meshviewerwindow.o meshviewerwindow.cpp
+
+../../build/gui_obj/meshgenerator.o: meshgenerator.cpp meshgenerator.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QString \
+		/opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QStringList \
+		/opt/homebrew/lib/QtCore.framework/Headers/qstringlist.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QFile \
+		/opt/homebrew/lib/QtCore.framework/Headers/qfile.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QFileInfo \
+		/opt/homebrew/lib/QtCore.framework/Headers/qfileinfo.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDir \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QTextStream \
+		/opt/homebrew/lib/QtCore.framework/Headers/qtextstream.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDebug \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdebug.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
+		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QSet \
+		/opt/homebrew/lib/QtCore.framework/Headers/qset.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QVector3D \
+		/opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h \
+		/opt/homebrew/opt/gmsh/include/gmshc.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/meshgenerator.o meshgenerator.cpp
 
 ../../build/gui_obj/moc_mainwindow.o: ../../build/gui_moc/moc_mainwindow.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../build/gui_obj/moc_mainwindow.o ../../build/gui_moc/moc_mainwindow.cpp

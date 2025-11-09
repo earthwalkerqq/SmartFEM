@@ -52,7 +52,7 @@ NodeSelectionWindow::NodeSelectionWindow(const QString &mshFile, const QString &
             if (nodeCoords.contains(nodeId)) {
                 QPair<double, double> coords = nodeCoords[nodeId];
                 nodeIdList.append(QString::number(nodeId));
-                meshInfoText->append(QString("✓ Выбран узел %1: (%.2f, %.2f)\n").arg(nodeId).arg(coords.first).arg(coords.second));
+                meshInfoText->append(QString("✓ Выбран узел %1: (%2, %3)\n").arg(nodeId).arg(coords.first, 0, 'f', 2).arg(coords.second, 0, 'f', 2));
             }
         }
         
@@ -82,7 +82,7 @@ NodeSelectionWindow::NodeSelectionWindow(const QString &mshFile, const QString &
                 meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
             }
             
-            meshInfoText->append(QString("✓ Выбран узел %1: (%.2f, %.2f)\n").arg(nodeId).arg(coords.x()).arg(coords.y()));
+            meshInfoText->append(QString("✓ Выбран узел %1: (%2, %3)\n").arg(nodeId).arg(coords.x(), 0, 'f', 2).arg(coords.y(), 0, 'f', 2));
             
             // Автоматически добавляем в зависимости от типа
             int type = constraintTypeCombo->currentIndex();
@@ -203,7 +203,7 @@ void NodeSelectionWindow::setupUI() {
         if (nodeId > 0 && nodeCoords.contains(nodeId)) {
             nodeIdEdit->setText(QString::number(nodeId));
             QPair<double, double> coords = nodeCoords[nodeId];
-            meshInfoText->append(QString("✓ Выбран узел %1: (%.2f, %.2f)\n").arg(nodeId).arg(coords.first).arg(coords.second));
+            meshInfoText->append(QString("✓ Выбран узел %1: (%2, %3)\n").arg(nodeId).arg(coords.first, 0, 'f', 2).arg(coords.second, 0, 'f', 2));
             // Подсвечиваем выбранный узел
             for (int i = 0; i < nodeListWidget->count(); i++) {
                 nodeListWidget->item(i)->setBackground(QBrush());
@@ -241,7 +241,7 @@ void NodeSelectionWindow::setupUI() {
             if (nodeId > 0 && nodeCoords.contains(nodeId)) {
                 nodeIdEdit->setText(QString::number(nodeId));
                 QPair<double, double> coords = nodeCoords[nodeId];
-                meshInfoText->append(QString("Выбран узел %1: (%.2f, %.2f)\n").arg(nodeId).arg(coords.first).arg(coords.second));
+                meshInfoText->append(QString("Выбран узел %1: (%2, %3)\n").arg(nodeId).arg(coords.first, 0, 'f', 2).arg(coords.second, 0, 'f', 2));
             }
         } else {
             QMessageBox::information(this, "Информация", "Выберите узел из списка (кликните на него)");
@@ -295,11 +295,11 @@ void NodeSelectionWindow::setupUI() {
                 }
                 if (nearestNode > 0 && minDist < 0.1) {
                     nodeIdEdit->setText(QString::number(nearestNode));
-                    meshInfoText->append(QString("✓ Найден ближайший узел %1: (%.2f, %.2f), расстояние: %.4f\n")
-                        .arg(nearestNode).arg(nodeCoords[nearestNode].first).arg(nodeCoords[nearestNode].second).arg(minDist));
+                    meshInfoText->append(QString("✓ Найден ближайший узел %1: (%2, %3), расстояние: %4\n")
+                        .arg(nearestNode).arg(nodeCoords[nearestNode].first, 0, 'f', 2).arg(nodeCoords[nearestNode].second, 0, 'f', 2).arg(minDist, 0, 'f', 4));
                 } else {
                     QMessageBox::warning(this, "Узел не найден", 
-                        QString("Ближайший узел находится на расстоянии %.4f. Попробуйте другой способ выбора.").arg(minDist));
+                        QString("Ближайший узел находится на расстоянии %1. Попробуйте другой способ выбора.").arg(minDist, 0, 'f', 4));
                 }
             }
         }
@@ -430,7 +430,7 @@ void NodeSelectionWindow::readNodeFile() {
             double x = parts[0].toDouble();
             double y = parts[1].toDouble();
             nodeCoords[i] = QPair<double, double>(x, y);
-            QListWidgetItem *item = new QListWidgetItem(QString("Узел %1: (%.2f, %.2f)").arg(i).arg(x).arg(y));
+            QListWidgetItem *item = new QListWidgetItem(QString("Узел %1: (%2, %3)").arg(i).arg(x, 0, 'f', 2).arg(y, 0, 'f', 2));
             item->setData(Qt::UserRole, i);  // Сохраняем номер узла
             nodeListWidget->addItem(item);
         }
@@ -534,6 +534,11 @@ void NodeSelectionWindow::addFixedNode() {
     if (type == 0) {  // Закрепление по U
         for (int nodeId : nodesToAdd) {
             QString nodeStr = QString::number(nodeId);
+            // Проверяем, не является ли этот узел узлом с нагрузкой
+            if (loadedNodes.contains(nodeStr)) {
+                meshInfoText->append(QString("⚠ Узел %1 имеет нагрузку, пропускаем закрепление по U\n").arg(nodeId));
+                continue;
+            }
             if (!fixedNodesU.contains(nodeStr)) {
                 fixedNodesU.append(nodeStr);
                 fixedUListWidget->addItem(QString("Узел %1").arg(nodeId));
@@ -552,6 +557,11 @@ void NodeSelectionWindow::addFixedNode() {
     } else if (type == 1) {  // Закрепление по V
         for (int nodeId : nodesToAdd) {
             QString nodeStr = QString::number(nodeId);
+            // Проверяем, не является ли этот узел узлом с нагрузкой
+            if (loadedNodes.contains(nodeStr)) {
+                meshInfoText->append(QString("⚠ Узел %1 имеет нагрузку, пропускаем закрепление по V\n").arg(nodeId));
+                continue;
+            }
             if (!fixedNodesV.contains(nodeStr)) {
                 fixedNodesV.append(nodeStr);
                 fixedVListWidget->addItem(QString("Узел %1").arg(nodeId));
@@ -571,6 +581,12 @@ void NodeSelectionWindow::addFixedNode() {
     
     if (addedCount > 0) {
         meshInfoText->append(QString("✓ Добавлено закреплений: %1\n").arg(addedCount));
+    }
+    
+    // Очищаем выбранные узлы после применения закреплений
+    selectedNodesInViewer.clear();
+    if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+        meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
     }
     
     nodeIdEdit->clear();
@@ -635,12 +651,25 @@ void NodeSelectionWindow::addLoadNode() {
     }
     
     int addedCount = 0;
+    int skippedCount = 0;
     for (int nodeId : nodesToAdd) {
         QString nodeStr = QString::number(nodeId);
+        // Проверяем, не закреплен ли этот узел
+        // Если узел закреплен, пропускаем его с предупреждением (не удаляем закрепление автоматически)
+        if (fixedNodesU.contains(nodeStr)) {
+            meshInfoText->append(QString("⚠ Узел %1 закреплен по U, пропускаем добавление нагрузки\n").arg(nodeId));
+            skippedCount++;
+            continue;
+        }
+        if (fixedNodesV.contains(nodeStr)) {
+            meshInfoText->append(QString("⚠ Узел %1 закреплен по V, пропускаем добавление нагрузки\n").arg(nodeId));
+            skippedCount++;
+            continue;
+        }
         if (!loadedNodes.contains(nodeStr)) {
             loadedNodes.append(nodeStr);
             nodeLoads[nodeStr] = QPair<double, double>(fx, fy);
-            loadedListWidget->addItem(QString("Узел %1: Fx=%.2f, Fy=%.2f").arg(nodeId).arg(fx).arg(fy));
+            loadedListWidget->addItem(QString("Узел %1: Fx=%2, Fy=%3").arg(nodeId).arg(fx, 0, 'f', 2).arg(fy, 0, 'f', 2));
             addedCount++;
         } else {
             // Обновляем нагрузку
@@ -648,7 +677,7 @@ void NodeSelectionWindow::addLoadNode() {
             // Обновляем отображение
             for (int i = 0; i < loadedListWidget->count(); i++) {
                 if (loadedListWidget->item(i)->text().startsWith(QString("Узел %1:").arg(nodeId))) {
-                    loadedListWidget->item(i)->setText(QString("Узел %1: Fx=%.2f, Fy=%.2f").arg(nodeId).arg(fx).arg(fy));
+                    loadedListWidget->item(i)->setText(QString("Узел %1: Fx=%2, Fy=%3").arg(nodeId).arg(fx, 0, 'f', 2).arg(fy, 0, 'f', 2));
                     break;
                 }
             }
@@ -666,6 +695,15 @@ void NodeSelectionWindow::addLoadNode() {
     
     if (addedCount > 0) {
         meshInfoText->append(QString("✓ Добавлено нагрузок: %1\n").arg(addedCount));
+    }
+    if (skippedCount > 0) {
+        meshInfoText->append(QString("⚠ Пропущено узлов (закреплены): %1\n").arg(skippedCount));
+    }
+    
+    // Очищаем выбранные узлы после применения нагрузок
+    selectedNodesInViewer.clear();
+    if (meshViewerWindow && meshViewerWindow->getMeshViewer()) {
+        meshViewerWindow->getMeshViewer()->setSelectedNodes(selectedNodesInViewer);
     }
     
     nodeIdEdit->clear();
@@ -747,6 +785,108 @@ void NodeSelectionWindow::saveAndClose() {
         QMessageBox::warning(this, "Предупреждение", "Не задано ни одного закрепления! Это может привести к ошибке расчета.");
     }
     
+    // Сохраняем граничные условия в файл node.txt
+    if (!saveBoundaryConditionsToFile()) {
+        QMessageBox::critical(this, "Ошибка", "Не удалось сохранить граничные условия в файл!");
+        return;
+    }
+    
     accept();
+}
+
+bool NodeSelectionWindow::saveBoundaryConditionsToFile() {
+    QFile file(nodeFile);
+    if (!file.open(QIODevice::ReadWrite | QIODevice::Text)) {
+        return false;
+    }
+    
+    QTextStream in(&file);
+    
+    // Читаем весь файл
+    QStringList lines;
+    while (!in.atEnd()) {
+        lines.append(in.readLine());
+    }
+    
+    if (lines.isEmpty()) {
+        file.close();
+        return false;
+    }
+    
+    file.resize(0);  // Очищаем файл
+    file.seek(0);
+    QTextStream out(&file);
+    
+    int numNodes = lines[0].toInt();
+    out << numNodes << "\n";
+    
+    // Создаем множества для быстрого поиска
+    QSet<int> fixedUSet, fixedVSet, loadedSet;
+    for (const QString &nodeStr : fixedNodesU) {
+        fixedUSet.insert(nodeStr.toInt());
+    }
+    for (const QString &nodeStr : fixedNodesV) {
+        fixedVSet.insert(nodeStr.toInt());
+    }
+    for (const QString &nodeStr : loadedNodes) {
+        loadedSet.insert(nodeStr.toInt());
+    }
+    
+    // Записываем узлы с граничными условиями
+    for (int i = 1; i <= numNodes && i < lines.size(); i++) {
+        QString line = lines[i];
+        QStringList parts = line.split(" ", Qt::SkipEmptyParts);
+        
+        if (parts.size() >= 3) {
+            double x = parts[0].toDouble();
+            double y = parts[1].toDouble();
+            double z = parts[2].toDouble();
+            
+            // Определяем флаги граничных условий
+            // u_flag: 0 = закреплен по U, 1 = свободен
+            // v_flag: 0 = закреплен по V, 1 = свободен
+            // load_flag: 100 = есть нагрузка, 0 = нет нагрузки
+            int u_flag = fixedUSet.contains(i) ? 0 : 1;
+            int v_flag = fixedVSet.contains(i) ? 0 : 1;
+            int load_flag = loadedSet.contains(i) ? 100 : 0;
+            
+            // Записываем: x y z u_flag v_flag load_flag
+            out << QString::number(x, 'g', 15) << " "
+                << QString::number(y, 'g', 15) << " "
+                << QString::number(z, 'g', 15) << " "
+                << u_flag << " "
+                << v_flag << " "
+                << load_flag << "\n";
+        } else {
+            // Если формат не соответствует ожидаемому, записываем как есть
+            out << line << "\n";
+        }
+    }
+    
+    // Записываем элементы (если они были)
+    int elemStartIdx = numNodes + 1;
+    if (elemStartIdx < lines.size()) {
+        for (int i = elemStartIdx; i < lines.size(); i++) {
+            out << lines[i] << "\n";
+        }
+    }
+    
+    file.close();
+    
+    // Сохраняем нагрузки в отдельный файл loads.txt
+    QString loadsFile = QFileInfo(nodeFile).absolutePath() + "/loads.txt";
+    QFile loadsFileHandle(loadsFile);
+    if (loadsFileHandle.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream loadsOut(&loadsFileHandle);
+        for (auto it = nodeLoads.begin(); it != nodeLoads.end(); ++it) {
+            int nodeId = it.key().toInt();
+            double fx = it.value().first;
+            double fy = it.value().second;
+            loadsOut << nodeId << " " << QString::number(fx, 'g', 15) << " " << QString::number(fy, 'g', 15) << "\n";
+        }
+        loadsFileHandle.close();
+    }
+    
+    return true;
 }
 

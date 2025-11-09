@@ -47,17 +47,24 @@ void MeshViewerWindow::setupUI() {
 }
 
 void MeshViewerWindow::onNodeClicked(int nodeId, const QPointF &coords) {
-    statusLabel->setText(QString("Выбран узел %1: (%.2f, %.2f)").arg(nodeId).arg(coords.x()).arg(coords.y()));
+    statusLabel->setText(QString("Выбран узел %1: (%2, %3)").arg(nodeId).arg(coords.x(), 0, 'f', 2).arg(coords.y(), 0, 'f', 2));
     emit nodeClicked(nodeId, coords);
 }
 
 void MeshViewerWindow::onNodeDoubleClicked(int nodeId, const QPointF &coords) {
-    statusLabel->setText(QString("Двойной клик на узел %1: (%.2f, %.2f)").arg(nodeId).arg(coords.x()).arg(coords.y()));
+    statusLabel->setText(QString("Двойной клик на узел %1: (%2, %3)").arg(nodeId).arg(coords.x(), 0, 'f', 2).arg(coords.y(), 0, 'f', 2));
     emit nodeDoubleClicked(nodeId, coords);
 }
 
 void MeshViewerWindow::onNodesSelected(const QSet<int> &nodeIds) {
-    statusLabel->setText(QString("Выбрано узлов: %1").arg(nodeIds.size()));
+    // Получаем общее количество выбранных узлов из визуализатора
+    if (meshViewer) {
+        QSet<int> allSelectedNodes = meshViewer->getSelectedNodes();
+        int totalSelected = allSelectedNodes.size();
+        statusLabel->setText(QString("Выбрано узлов: %1").arg(totalSelected));
+    } else {
+        statusLabel->setText(QString("Выбрано узлов: %1").arg(nodeIds.size()));
+    }
     emit nodesSelected(nodeIds);
 }
 
